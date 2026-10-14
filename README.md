@@ -64,7 +64,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
       cursor: pointer;
     }
-    .compass-rose { width: 56px; height: 56px; transition: transform 0.1s ease-out; }
+    .compass-rose { width: 56px; height: 56px; transition: transform 0.15s ease-out; }
     .compass-deg-badge {
       font-size: 0.5rem;
       font-weight: 700;
@@ -106,7 +106,7 @@
 <body>
 
   <header>
-    <h1>⛰️ iGuide Pro</h1>
+    <h1>🧭 iGuide Pro</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
       <span class="owner-tag">by : @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
@@ -127,7 +127,7 @@
     <button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="openModal('team-modal')">👥 Live Tim (<span id="team-status-label">Off</span>)</button>
   </div>
 
-  <!-- Status Bar Utama (4 Kolom dengan Realtime Cuaca) -->
+  <!-- Status Bar Utama -->
   <div class="status-bar">
     <div class="status-card">
       <h4>Ketinggian</h4>
@@ -147,9 +147,9 @@
     </div>
   </div>
 
-  <!-- Area Peta & Kompas Kiblat/Barat -->
+  <!-- Area Peta & Kompas -->
   <div class="map-container">
-    <div class="compass-widget" onclick="requestCompassPermission()" title="Arah Kiblat / Barat">
+    <div class="compass-widget" onclick="requestCompassPermission()" title="Klik untuk Kalibrasi Kompas">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
         <circle cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
@@ -162,7 +162,7 @@
         <polygon points="50,94 43,50 50,56" fill="#64748b"/>
         <polygon points="50,94 57,50 50,56" fill="#94a3b8"/>
         
-        <!-- Jarum BARAT / KIBLAT (Hijau Terang) -->
+        <!-- Jarum BARAT -->
         <polygon points="6,50 50,43 44,50" fill="#10b981"/>
         <polygon points="6,50 50,57 44,50" fill="#34d399"/>
         
@@ -213,10 +213,10 @@
   <!-- MODAL LIVE TIM -->
   <div id="team-modal" class="modal">
     <div class="modal-content">
-      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Pantau Posisi Teman (Live Tim)</h3>
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Track Line</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="team-group-input" placeholder="Nama Grup (Cth: TimPenanggungan)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
-        <input type="text" id="team-name-input" placeholder="Nama Anda (Cth: Budi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-group-input" placeholder="Nama Grup (Tanpa Spasi, contoh: TimGunung)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-name-input" placeholder="Nama Anda (contoh: Budi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
       </div>
       <div style="display: flex; gap: 6px;">
         <button class="btn btn-sky" style="flex: 1; padding: 8px;" onclick="toggleLiveTracking(true)">Aktifkan Live</button>
@@ -256,7 +256,6 @@
     let map;
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
-    let lastLat = null, lastLng = null;
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -279,7 +278,7 @@
     let isLiveActive = false;
     let myTeamGroup = localStorage.getItem('team_group') || '';
     let myTeamName = localStorage.getItem('team_name') || '';
-    let teamDataRef = null;
+    let liveSyncInterval = null;
 
     function initMap() {
       const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri' });
@@ -349,42 +348,43 @@
         });
     }
 
+    /* PEMBERSIHAN SENSOR KOMPAS */
     function initCompassSensor() {
+      const handleOrientation = (event) => {
+        let heading = null;
+        if (event.webkitCompassHeading) {
+          heading = event.webkitCompassHeading; // iOS / Safari
+        } else if (event.alpha !== null) {
+          heading = 360 - event.alpha; // Android
+        }
+        if (heading !== null) {
+          rotateCompass(heading);
+        }
+      };
+
       if (window.DeviceOrientationEvent) {
-        window.addEventListener('deviceorientation', (event) => {
-          let alpha = event.alpha;
-          if (alpha !== null && alpha !== undefined) {
-            rotateCompass(360 - alpha);
-          }
-        }, true);
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
       }
     }
 
     function requestCompassPermission() {
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission().then(resp => { if (resp === 'granted') alert("Kompas diizinkan!"); }).catch(console.error);
+        DeviceOrientationEvent.requestPermission().then(resp => { 
+          if (resp === 'granted') alert("Sensor Kompas Diaktifkan!"); 
+        }).catch(console.error);
       } else {
-        alert("Sensor kompas aktif!");
+        alert("Kalibrasi Kompas: Gerakkan HP Anda membentuk angka 8 di udara!");
       }
     }
 
     function rotateCompass(deg) {
       const svgEl = document.getElementById('compass-svg');
       const degText = document.getElementById('compass-deg');
+      let normalizedDeg = Math.round((deg + 360) % 360);
 
-      if (svgEl) svgEl.style.transform = `rotate(${deg}deg)`;
-      let normalizedDeg = (Math.round(360 - deg)) % 360;
+      if (svgEl) svgEl.style.transform = `rotate(${-normalizedDeg}deg)`;
       if (degText) degText.textContent = `${normalizedDeg}°`;
-    }
-
-    function calculateHeading(lat1, lon1, lat2, lon2) {
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      lat1 = lat1 * Math.PI / 180;
-      lat2 = lat2 * Math.PI / 180;
-      const y = Math.sin(dLon) * Math.cos(lat2);
-      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-      let brng = Math.atan2(y, x) * 180 / Math.PI;
-      return (brng + 360) % 360;
     }
 
     function initElevationChart() {
@@ -428,11 +428,15 @@
       elevationChartInstance.update();
     }
 
+    /* PEMBERSIHAN LIVE TRACKING TIM */
     function toggleLiveTracking(enable) {
       if (enable) {
-        myTeamGroup = document.getElementById('team-group-input').value.trim();
-        myTeamName = document.getElementById('team-name-input').value.trim();
-        if (!myTeamGroup || !myTeamName) { alert("Isi Nama Grup & Nama Anda!"); return; }
+        let rawGroup = document.getElementById('team-group-input').value.trim();
+        let rawName = document.getElementById('team-name-input').value.trim();
+        if (!rawGroup || !rawName) { alert("Isi Nama Grup & Nama Anda!"); return; }
+
+        myTeamGroup = rawGroup.replace(/[^a-zA-Z0-9]/g, "_");
+        myTeamName = rawName.replace(/[^a-zA-Z0-9]/g, "_");
 
         localStorage.setItem('team_group', myTeamGroup);
         localStorage.setItem('team_name', myTeamName);
@@ -442,10 +446,18 @@
         document.getElementById('team-status-label').style.color = "#34d399";
         closeModal('team-modal');
         alert(`Live tracking aktif untuk grup "${myTeamGroup}"!`);
+        
         listenToTeamMembers();
+        
+        if (liveSyncInterval) clearInterval(liveSyncInterval);
+        liveSyncInterval = setInterval(updateMyTeamLocation, 4000); // Sinkronkan ke Firebase tiap 4 detik
+        updateMyTeamLocation();
       } else {
         isLiveActive = false;
-        if (teamDataRef) teamDataRef.remove();
+        if (liveSyncInterval) clearInterval(liveSyncInterval);
+        if (myTeamGroup && myTeamName) {
+          db.ref(`teams/${myTeamGroup}/${myTeamName}`).remove();
+        }
         teamLayerGroup.clearLayers();
         document.getElementById('team-status-label').textContent = "Off";
         document.getElementById('team-status-label').style.color = "#fff";
@@ -456,13 +468,13 @@
 
     function updateMyTeamLocation() {
       if (!isLiveActive || !myTeamGroup || !myTeamName) return;
-      const cleanName = myTeamName.replace(/[.#$\/\[\]]/g, "_");
-      teamDataRef = db.ref(`teams/${myTeamGroup}/${cleanName}`);
-      teamDataRef.set({
+      
+      db.ref(`teams/${myTeamGroup}/${myTeamName}`).set({
         name: myTeamName,
         lat: currentLat,
         lng: currentLng,
         alt: currentAlt,
+        path: recordedTrackPoints,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
       });
     }
@@ -476,6 +488,13 @@
           Object.keys(members).forEach(key => {
             const member = members[key];
             if (member.name !== myTeamName) {
+              // 1. Gambar Track Line Teman
+              if (member.path && Array.isArray(member.path) && member.path.length > 1) {
+                const memberTrackLine = L.polyline(member.path, { color: '#a855f7', weight: 4, opacity: 0.8 });
+                teamLayerGroup.addLayer(memberTrackLine);
+              }
+
+              // 2. Gambar Posisi Teman
               const memberMarker = L.circleMarker([member.lat, member.lng], {
                 radius: 10, color: '#ffffff', fillColor: '#f59e0b', fillOpacity: 1, weight: 2
               }).bindPopup(`<b>👥 ${member.name}</b><br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
@@ -511,7 +530,7 @@
     }
 
     function locateUser() {
-      if (currentLat && currentLng) map.setView([currentLat, currentLng], 16);
+      if (currentLat && currentLng) map.setView([currentLat, currentLng], 17);
       else alert("Mencari sinyal GPS...");
     }
 
@@ -549,18 +568,18 @@
       else { el.textContent='OFFLINE'; el.className='mode-tag offline'; }
     }
 
+    /* GPS WATCH DENGAN FILTER SMOOTHING JALUR (MENCEGAH ZIGZAG) */
     function startGPSWatch() {
       if ('geolocation' in navigator) {
         navigator.geolocation.watchPosition(position => {
-          lastLat = currentLat;
-          lastLng = currentLng;
-          currentLat = position.coords.latitude;
-          currentLng = position.coords.longitude;
+          let accuracy = position.coords.accuracy;
+          if (accuracy > 35) return; // Abaikan jika sinyal GPS sangat tidak akurat (> 35 meter)
 
-          if (lastLat !== null && lastLng !== null && (lastLat !== currentLat || lastLng !== currentLng)) {
-            let heading = calculateHeading(lastLat, lastLng, currentLat, currentLng);
-            rotateCompass(360 - heading);
-          }
+          let newLat = position.coords.latitude;
+          let newLng = position.coords.longitude;
+
+          currentLat = newLat;
+          currentLng = newLng;
 
           let rawAlt = position.coords.altitude;
           if (rawAlt === null || rawAlt === undefined || rawAlt <= 5) {
@@ -582,30 +601,31 @@
       document.getElementById('altitude').textContent = `${currentAlt} mdpl`;
       document.getElementById('gps-status').textContent = "Akurat";
       document.getElementById('gps-status').style.color = "#34d399";
-      fetchRealtimeWeather(currentLat, currentLng);
 
       if (!userMarker) {
         userMarker = L.circleMarker([currentLat, currentLng], { radius: 9, color: '#ffffff', fillColor: '#38bdf8', fillOpacity: 1, weight: 2 }).addTo(map);
       } else { userMarker.setLatLng([currentLat, currentLng]); }
 
-      if (isLiveActive) updateMyTeamLocation();
-
       if (isRecording) {
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
-        recordedTrackPoints.push(newPt);
 
-        if (lastPoint) {
-          totalDistanceMeters += map.distance(lastPoint, newPt);
-          document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
+        // Mencegah Garis Zigzag (Filter jarak minimal bergerak 5 meter)
+        if (!lastPoint || map.distance(lastPoint, newPt) >= 5) {
+          recordedTrackPoints.push(newPt);
+
+          if (lastPoint) {
+            totalDistanceMeters += map.distance(lastPoint, newPt);
+            document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
+          }
+
+          if (currentAlt > maxElevation) maxElevation = currentAlt;
+          updateChartData(currentAlt);
+
+          if (!liveTrackLine) {
+            liveTrackLine = L.polyline(recordedTrackPoints, {color: '#22c55e', weight: 5, smoothFactor: 1.5}).addTo(map);
+          } else { liveTrackLine.setLatLngs(recordedTrackPoints); }
         }
-
-        if (currentAlt > maxElevation) maxElevation = currentAlt;
-        updateChartData(currentAlt);
-
-        if (!liveTrackLine) {
-          liveTrackLine = L.polyline(recordedTrackPoints, {color: '#22c55e', weight: 5}).addTo(map);
-        } else { liveTrackLine.setLatLngs(recordedTrackPoints); }
       }
     }
 
