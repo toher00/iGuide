@@ -98,7 +98,18 @@
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
     #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
 
-    .team-label { background: rgba(15, 23, 42, 0.9); border: 1px solid #38bdf8; color: #f8fafc; font-weight: 600; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+    /* Styling tooltip nama agar selalu terlihat jelas di peta */
+    .leaflet-tooltip.team-label {
+      background: rgba(15, 23, 42, 0.95) !important;
+      border: 1px solid #38bdf8 !important;
+      color: #38bdf8 !important;
+      font-weight: 700 !important;
+      font-size: 0.7rem !important;
+      padding: 3px 6px !important;
+      border-radius: 6px !important;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5) !important;
+      white-space: nowrap !important;
+    }
 	
 	.leaflet-control-attribution { display: none !important; }
  </style>
@@ -149,7 +160,7 @@
 
   <!-- Area Peta & Kompas -->
   <div class="map-container">
-    <div class="compass-widget" onclick="requestCompassPermission()" title="Arah Kiblat / Barat">
+    <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
         <circle cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
@@ -162,7 +173,7 @@
         <polygon points="50,94 43,50 50,56" fill="#64748b"/>
         <polygon points="50,94 57,50 50,56" fill="#94a3b8"/>
         
-        <!-- Jarum BARAT / KIBLAT -->
+        <!-- Jarum BARAT -->
         <polygon points="6,50 50,43 44,50" fill="#10b981"/>
         <polygon points="6,50 50,57 44,50" fill="#34d399"/>
         
@@ -197,10 +208,10 @@
     </div>
   </div>
 
-  <!-- MODAL RIWAYAT TRIP & GRAFIK -->
+  <!-- MODAL RIWAYAT TRIP -->
   <div id="history-modal" class="modal">
     <div class="modal-content">
-      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Grafik</h3>
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Download GPX</h3>
       <div id="history-list-container" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;"></div>
       <div style="background: #0f172a; padding: 8px; border-radius: 6px; border: 1px solid #334155; margin-bottom: 10px;">
         <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📈 Grafik Elevasi Sesi Ini</h4>
@@ -213,10 +224,10 @@
   <!-- MODAL LIVE TIM -->
   <div id="team-modal" class="modal">
     <div class="modal-content">
-      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Pantau Posisi & Track Record Tim</h3>
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Track Line</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="team-group-input" placeholder="Nama Grup (Cth: TimPenanggungan)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
-        <input type="text" id="team-name-input" placeholder="Nama Anda (Cth: Budi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-group-input" placeholder="Nama Grup (Misal: GunungArjuno)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-name-input" placeholder="Nama Anda (Misal: mem atau juki)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
       </div>
       <div style="display: flex; gap: 6px;">
         <button class="btn btn-sky" style="flex: 1; padding: 8px;" onclick="toggleLiveTracking(true)">Aktifkan Live</button>
@@ -256,7 +267,6 @@
     let map;
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
-    let lastLat = null, lastLng = null;
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -279,7 +289,21 @@
     let isLiveActive = false;
     let myTeamGroup = localStorage.getItem('team_group') || '';
     let myTeamName = localStorage.getItem('team_name') || '';
-    let teamDataRef = null;
+    let liveSyncInterval = null;
+
+    // Fungsi pembuat warna acak yang konsisten berdasarkan nama user
+    function stringToColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let color = '#';
+      for (let i = 0; i < 3; i++) {
+        let value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+      }
+      return color;
+    }
 
     function initMap() {
       const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri' });
@@ -349,42 +373,41 @@
         });
     }
 
+    /* KOMPAS FISIK: ATAS HP SEBAGAI UTARA */
     function initCompassSensor() {
+      const handleOrientation = (e) => {
+        let compassHeading = null;
+        if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+          compassHeading = e.webkitCompassHeading;
+        } else if (e.alpha !== null && e.alpha !== undefined) {
+          compassHeading = 360 - e.alpha;
+        }
+        if (compassHeading !== null) rotateCompass(compassHeading);
+      };
+
       if (window.DeviceOrientationEvent) {
-        window.addEventListener('deviceorientation', (event) => {
-          let alpha = event.alpha;
-          if (alpha !== null && alpha !== undefined) {
-            rotateCompass(360 - alpha);
-          }
-        }, true);
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
       }
     }
 
     function requestCompassPermission() {
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission().then(resp => { if (resp === 'granted') alert("Kompas diizinkan!"); }).catch(console.error);
+        DeviceOrientationEvent.requestPermission().then(resp => {
+          if (resp === 'granted') alert("Sensor Kompas Diizinkan!");
+        }).catch(console.error);
       } else {
-        alert("Sensor kompas aktif!");
+        alert("Kompas Aktif: Bagian atas HP adalah arah Utara.");
       }
     }
 
     function rotateCompass(deg) {
       const svgEl = document.getElementById('compass-svg');
       const degText = document.getElementById('compass-deg');
+      let normalizedDeg = Math.round((deg + 360) % 360);
 
-      if (svgEl) svgEl.style.transform = `rotate(${deg}deg)`;
-      let normalizedDeg = (Math.round(360 - deg)) % 360;
+      if (svgEl) svgEl.style.transform = `rotate(${-normalizedDeg}deg)`;
       if (degText) degText.textContent = `${normalizedDeg}°`;
-    }
-
-    function calculateHeading(lat1, lon1, lat2, lon2) {
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      lat1 = lat1 * Math.PI / 180;
-      lat2 = lat2 * Math.PI / 180;
-      const y = Math.sin(dLon) * Math.cos(lat2);
-      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-      let brng = Math.atan2(y, x) * 180 / Math.PI;
-      return (brng + 360) % 360;
     }
 
     function initElevationChart() {
@@ -430,9 +453,12 @@
 
     function toggleLiveTracking(enable) {
       if (enable) {
-        myTeamGroup = document.getElementById('team-group-input').value.trim();
-        myTeamName = document.getElementById('team-name-input').value.trim();
-        if (!myTeamGroup || !myTeamName) { alert("Isi Nama Grup & Nama Anda!"); return; }
+        let rawGroup = document.getElementById('team-group-input').value.trim();
+        let rawName = document.getElementById('team-name-input').value.trim();
+        if (!rawGroup || !rawName) { alert("Isi Nama Grup & Nama Anda!"); return; }
+
+        myTeamGroup = rawGroup.replace(/[^a-zA-Z0-9]/g, "_");
+        myTeamName = rawName.replace(/[^a-zA-Z0-9]/g, "_");
 
         localStorage.setItem('team_group', myTeamGroup);
         localStorage.setItem('team_name', myTeamName);
@@ -441,11 +467,19 @@
         document.getElementById('team-status-label').textContent = "Aktif";
         document.getElementById('team-status-label').style.color = "#34d399";
         closeModal('team-modal');
-        alert(`Live tracking aktif untuk grup "${myTeamGroup}"!`);
+        alert(`Live tracking aktif untuk grup "${myTeamGroup}" sebagai "${myTeamName}"!`);
+        
         listenToTeamMembers();
+        
+        if (liveSyncInterval) clearInterval(liveSyncInterval);
+        liveSyncInterval = setInterval(updateMyTeamLocation, 2500);
+        updateMyTeamLocation();
       } else {
         isLiveActive = false;
-        if (teamDataRef) teamDataRef.remove();
+        if (liveSyncInterval) clearInterval(liveSyncInterval);
+        if (myTeamGroup && myTeamName) {
+          db.ref(`teams/${myTeamGroup}/${myTeamName}`).remove();
+        }
         teamLayerGroup.clearLayers();
         document.getElementById('team-status-label').textContent = "Off";
         document.getElementById('team-status-label').style.color = "#fff";
@@ -456,22 +490,18 @@
 
     function updateMyTeamLocation() {
       if (!isLiveActive || !myTeamGroup || !myTeamName) return;
-      const cleanName = myTeamName.replace(/[.#$\/\[\]]/g, "_");
-      teamDataRef = db.ref(`teams/${myTeamGroup}/${cleanName}`);
       
-      // Ambil riwayat path lokal jika sedang merekam untuk dikirim ke firebase
-      let currentPathSnapshot = isRecording ? recordedTrackPoints : [];
-
-      teamDataRef.set({
+      db.ref(`teams/${myTeamGroup}/${myTeamName}`).set({
         name: myTeamName,
         lat: currentLat,
         lng: currentLng,
         alt: currentAlt,
-        path: currentPathSnapshot,
+        path: recordedTrackPoints,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
       });
     }
 
+    /* MENAMPILKAN ANGGOTA LAIN DI PETA BESERTA NAMA & WARNA JALUR RANDOM */
     function listenToTeamMembers() {
       if (!myTeamGroup) return;
       db.ref(`teams/${myTeamGroup}`).on('value', (snapshot) => {
@@ -480,16 +510,19 @@
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
+            // Sembunyikan nama user sendiri di device sendiri, tapi tampilkan user lain (misal HP <-> PC)
             if (member.name !== myTeamName) {
-              // 1. Gambar Track Record / Garis Jalur Anggota Tim jika ada
+              const memberColor = stringToColor(member.name);
+
+              // 1. Gambar Track Line Anggota Lain dengan Warna Random Unik
               if (member.path && Array.isArray(member.path) && member.path.length > 1) {
-                const memberTrackLine = L.polyline(member.path, { color: '#a855f7', weight: 4, opacity: 0.7 });
+                const memberTrackLine = L.polyline(member.path, { color: memberColor, weight: 5, opacity: 0.9 });
                 teamLayerGroup.addLayer(memberTrackLine);
               }
 
-              // 2. Gambar Titik Marker Posisi Terkini Anggota Tim
+              // 2. Gambar Marker & Label Nama Anggota Lain
               const memberMarker = L.circleMarker([member.lat, member.lng], {
-                radius: 10, color: '#ffffff', fillColor: '#f59e0b', fillOpacity: 1, weight: 2
+                radius: 10, color: '#ffffff', fillColor: memberColor, fillOpacity: 1, weight: 2
               }).bindPopup(`<b>👥 ${member.name}</b><br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
               
               memberMarker.bindTooltip(member.name, { permanent: true, direction: 'top', className: 'team-label' });
@@ -523,7 +556,7 @@
     }
 
     function locateUser() {
-      if (currentLat && currentLng) map.setView([currentLat, currentLng], 16);
+      if (currentLat && currentLng) map.setView([currentLat, currentLng], 17);
       else alert("Mencari sinyal GPS...");
     }
 
@@ -564,15 +597,11 @@
     function startGPSWatch() {
       if ('geolocation' in navigator) {
         navigator.geolocation.watchPosition(position => {
-          lastLat = currentLat;
-          lastLng = currentLng;
+          let accuracy = position.coords.accuracy;
+          if (accuracy > 35) return;
+
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
-
-          if (lastLat !== null && lastLng !== null && (lastLat !== currentLat || lastLng !== currentLng)) {
-            let heading = calculateHeading(lastLat, lastLng, currentLat, currentLng);
-            rotateCompass(360 - heading);
-          }
 
           let rawAlt = position.coords.altitude;
           if (rawAlt === null || rawAlt === undefined || rawAlt <= 5) {
@@ -594,7 +623,6 @@
       document.getElementById('altitude').textContent = `${currentAlt} mdpl`;
       document.getElementById('gps-status').textContent = "Akurat";
       document.getElementById('gps-status').style.color = "#34d399";
-      fetchRealtimeWeather(currentLat, currentLng);
 
       if (!userMarker) {
         userMarker = L.circleMarker([currentLat, currentLng], { radius: 9, color: '#ffffff', fillColor: '#38bdf8', fillOpacity: 1, weight: 2 }).addTo(map);
@@ -605,19 +633,22 @@
       if (isRecording) {
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
-        recordedTrackPoints.push(newPt);
 
-        if (lastPoint) {
-          totalDistanceMeters += map.distance(lastPoint, newPt);
-          document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
+        if (!lastPoint || map.distance(lastPoint, newPt) >= 5) {
+          recordedTrackPoints.push(newPt);
+
+          if (lastPoint) {
+            totalDistanceMeters += map.distance(lastPoint, newPt);
+            document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
+          }
+
+          if (currentAlt > maxElevation) maxElevation = currentAlt;
+          updateChartData(currentAlt);
+
+          if (!liveTrackLine) {
+            liveTrackLine = L.polyline(recordedTrackPoints, {color: '#22c55e', weight: 5, smoothFactor: 1.5}).addTo(map);
+          } else { liveTrackLine.setLatLngs(recordedTrackPoints); }
         }
-
-        if (currentAlt > maxElevation) maxElevation = currentAlt;
-        updateChartData(currentAlt);
-
-        if (!liveTrackLine) {
-          liveTrackLine = L.polyline(recordedTrackPoints, {color: '#22c55e', weight: 5}).addTo(map);
-        } else { liveTrackLine.setLatLngs(recordedTrackPoints); }
       }
     }
 
@@ -706,11 +737,24 @@
       const durationText = document.getElementById('trip-timer').textContent;
       const distanceText = document.getElementById('trip-distance').textContent;
 
-      if (confirm(`Pendakian Selesai!\n\nDurasi: ${durationText}\nJarak: ${distanceText}\nElevasi Max: ${maxElevation}m\n\nSimpan trip?`)) {
-        savedHistory.push({ date: tripStartDateStr, duration: durationText, distance: distanceText, startAlt: startElevation, maxAlt: maxElevation });
+      if (confirm(`Pendakian Selesai!\n\nDurasi: ${durationText}\nJarak: ${distanceText}\nElevasi Max: ${maxElevation}m\n\nSimpan trip ke Riwayat?`)) {
+        let gpxTrackXML = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="iGuide Pro">\n  <trk>\n    <name>Trip ${tripStartDateStr}</name>\n    <trkseg>\n`;
+        recordedTrackPoints.forEach(pt => {
+          gpxTrackXML += `      <trkpt lat="${pt[0]}" lon="${pt[1]}"></trkpt>\n`;
+        });
+        gpxTrackXML += `    </trkseg>\n  </trk>\n</gpx>`;
+
+        savedHistory.push({ 
+          date: tripStartDateStr, 
+          duration: durationText, 
+          distance: distanceText, 
+          startAlt: startElevation, 
+          maxAlt: maxElevation,
+          gpxData: gpxTrackXML 
+        });
         localStorage.setItem('saved_trip_history_v17', JSON.stringify(savedHistory));
         renderHistoryList();
-        alert("Trip tersimpan!");
+        alert("Trip berhasil disimpan ke Riwayat & siap di-download!");
       }
 
       tripSeconds = 0; totalDistanceMeters = 0; recordedTrackPoints = [];
@@ -728,9 +772,24 @@
       const container = document.getElementById('history-list-container');
       container.innerHTML = savedHistory.length === 0 ? '<p style="color:#94a3b8; text-align:center;">Belum ada riwayat.</p>' : '';
       savedHistory.forEach((trip, index) => {
-        container.innerHTML += `<div class="list-item"><div><strong>📅 ${trip.date}</strong><br><small style="color:#38bdf8">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small></div><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteHistory(${index})">Hapus</button></div>`;
+        let downloadBtnHTML = trip.gpxData ? `<button class="menu-btn" style="background:#0284c7; color:#white; margin-top:4px;" onclick="downloadTripGPX(${index})">⬇️ Download GPX</button>` : '';
+        container.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;"><div style="width:100%; display:flex; justify-content:space-between;"><strong>📅 ${trip.date}</strong><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteHistory(${index})">Hapus</button></div><small style="color:#38bdf8; margin-top:2px;">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>${downloadBtnHTML}</div>`;
       });
       document.getElementById('history-count').textContent = savedHistory.length;
+    }
+
+    function downloadTripGPX(index) {
+      const trip = savedHistory[index];
+      if (!trip || !trip.gpxData) return;
+      const blob = new Blob([trip.gpxData], { type: 'application/gpx+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Trip_${trip.date.replace(/[/,: ]/g, '_')}.gpx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
     function deleteHistory(index) {
@@ -760,7 +819,7 @@
       map.closePopup();
     }
 
-    function openModal(id) { document.getElementById(id).style.display = 'block'; }
+    function openModal(id) { document.getElementById(id).style.display = 'comblock' || 'block'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
     window.onload = initMap;
