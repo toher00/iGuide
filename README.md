@@ -64,7 +64,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
       cursor: pointer;
     }
-    .compass-rose { width: 56px; height: 56px; transition: transform 0.15s ease-out; }
+    .compass-rose { width: 56px; height: 56px; transition: transform 0.2s ease-out; }
     .compass-deg-badge {
       font-size: 0.5rem;
       font-weight: 700;
@@ -98,7 +98,8 @@
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
     #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
 
-    .team-label { background: rgba(15, 23, 42, 0.9); border: 1px solid #38bdf8; color: #f8fafc; font-weight: 600; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+    /* Label Nama Tim di Peta */
+    .team-label { background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8; color: #f8fafc; font-weight: 600; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap; }
 	
 	.leaflet-control-attribution { display: none !important; }
  </style>
@@ -149,7 +150,7 @@
 
   <!-- Area Peta & Kompas -->
   <div class="map-container">
-    <div class="compass-widget" onclick="requestCompassPermission()" title="Klik untuk Kalibrasi Kompas">
+    <div class="compass-widget" onclick="alert('Kompas aktif menggunakan arah gerak GPS yang stabil.')" title="Indikator Arah">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
         <circle cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
@@ -215,7 +216,7 @@
     <div class="modal-content">
       <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Track Line</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="team-group-input" placeholder="Nama Grup (Tanpa Spasi, contoh: TimGunung)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-group-input" placeholder="Nama Grup (Tanpa Spasi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
         <input type="text" id="team-name-input" placeholder="Nama Anda (contoh: Budi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
       </div>
       <div style="display: flex; gap: 6px;">
@@ -256,6 +257,7 @@
     let map;
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
+    let lastLat = null, lastLng = null;
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -322,7 +324,6 @@
       window.addEventListener('offline', updateConn);
       updateConn();
       startGPSWatch();
-      initCompassSensor();
       fetchRealtimeWeather(currentLat, currentLng);
     }
 
@@ -348,34 +349,15 @@
         });
     }
 
-    /* PEMBERSIHAN SENSOR KOMPAS */
-    function initCompassSensor() {
-      const handleOrientation = (event) => {
-        let heading = null;
-        if (event.webkitCompassHeading) {
-          heading = event.webkitCompassHeading; // iOS / Safari
-        } else if (event.alpha !== null) {
-          heading = 360 - event.alpha; // Android
-        }
-        if (heading !== null) {
-          rotateCompass(heading);
-        }
-      };
-
-      if (window.DeviceOrientationEvent) {
-        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-        window.addEventListener('deviceorientation', handleOrientation, true);
-      }
-    }
-
-    function requestCompassPermission() {
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission().then(resp => { 
-          if (resp === 'granted') alert("Sensor Kompas Diaktifkan!"); 
-        }).catch(console.error);
-      } else {
-        alert("Kalibrasi Kompas: Gerakkan HP Anda membentuk angka 8 di udara!");
-      }
+    /* KALKULASI ARAH BERDASARKAN PERGERAKAN GPS (STABIL & ANTI-NGGAWUR) */
+    function calculateHeading(lat1, lon1, lat2, lon2) {
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      lat1 = lat1 * Math.PI / 180;
+      lat2 = lat2 * Math.PI / 180;
+      const y = Math.sin(dLon) * Math.cos(lat2);
+      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+      let brng = Math.atan2(y, x) * 180 / Math.PI;
+      return (brng + 360) % 360;
     }
 
     function rotateCompass(deg) {
@@ -428,7 +410,6 @@
       elevationChartInstance.update();
     }
 
-    /* PEMBERSIHAN LIVE TRACKING TIM */
     function toggleLiveTracking(enable) {
       if (enable) {
         let rawGroup = document.getElementById('team-group-input').value.trim();
@@ -450,7 +431,7 @@
         listenToTeamMembers();
         
         if (liveSyncInterval) clearInterval(liveSyncInterval);
-        liveSyncInterval = setInterval(updateMyTeamLocation, 4000); // Sinkronkan ke Firebase tiap 4 detik
+        liveSyncInterval = setInterval(updateMyTeamLocation, 4000);
         updateMyTeamLocation();
       } else {
         isLiveActive = false;
@@ -479,6 +460,7 @@
       });
     }
 
+    /* MENAMPILKAN ANGGOTA LAIN DI PETA TANPA MENAMPILKAN NAMA USER SENDIRI */
     function listenToTeamMembers() {
       if (!myTeamGroup) return;
       db.ref(`teams/${myTeamGroup}`).on('value', (snapshot) => {
@@ -487,14 +469,15 @@
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
+            // Pastikan nama user sendiri TIDAK dimunculkan di device sendiri
             if (member.name !== myTeamName) {
-              // 1. Gambar Track Line Teman
+              // 1. Gambar Track Line Anggota Tim Lain
               if (member.path && Array.isArray(member.path) && member.path.length > 1) {
                 const memberTrackLine = L.polyline(member.path, { color: '#a855f7', weight: 4, opacity: 0.8 });
                 teamLayerGroup.addLayer(memberTrackLine);
               }
 
-              // 2. Gambar Posisi Teman
+              // 2. Gambar Marker & Label Nama Anggota Tim Lain
               const memberMarker = L.circleMarker([member.lat, member.lng], {
                 radius: 10, color: '#ffffff', fillColor: '#f59e0b', fillOpacity: 1, weight: 2
               }).bindPopup(`<b>👥 ${member.name}</b><br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
@@ -568,18 +551,22 @@
       else { el.textContent='OFFLINE'; el.className='mode-tag offline'; }
     }
 
-    /* GPS WATCH DENGAN FILTER SMOOTHING JALUR (MENCEGAH ZIGZAG) */
     function startGPSWatch() {
       if ('geolocation' in navigator) {
         navigator.geolocation.watchPosition(position => {
           let accuracy = position.coords.accuracy;
-          if (accuracy > 35) return; // Abaikan jika sinyal GPS sangat tidak akurat (> 35 meter)
+          if (accuracy > 35) return;
 
-          let newLat = position.coords.latitude;
-          let newLng = position.coords.longitude;
+          lastLat = currentLat;
+          lastLng = currentLng;
+          currentLat = position.coords.latitude;
+          currentLng = position.coords.longitude;
 
-          currentLat = newLat;
-          currentLng = newLng;
+          // Hitung arah kompas stabil berdasarkan pergerakan koordinat GPS
+          if (lastLat !== null && lastLng !== null && (lastLat !== currentLat || lastLng !== currentLng)) {
+            let heading = calculateHeading(lastLat, lastLng, currentLat, currentLng);
+            rotateCompass(heading);
+          }
 
           let rawAlt = position.coords.altitude;
           if (rawAlt === null || rawAlt === undefined || rawAlt <= 5) {
@@ -610,7 +597,6 @@
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
 
-        // Mencegah Garis Zigzag (Filter jarak minimal bergerak 5 meter)
         if (!lastPoint || map.distance(lastPoint, newPt) >= 5) {
           recordedTrackPoints.push(newPt);
 
