@@ -98,7 +98,6 @@
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
     #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
 
-    /* Styling tooltip nama agar selalu terlihat jelas di peta */
     .leaflet-tooltip.team-label {
       background: rgba(15, 23, 42, 0.95) !important;
       border: 1px solid #38bdf8 !important;
@@ -291,7 +290,6 @@
     let myTeamName = localStorage.getItem('team_name') || '';
     let liveSyncInterval = null;
 
-    // Fungsi pembuat warna acak yang konsisten berdasarkan nama user
     function stringToColor(str) {
       let hash = 0;
       for (let i = 0; i < str.length; i++) {
@@ -373,7 +371,6 @@
         });
     }
 
-    /* KOMPAS FISIK: ATAS HP SEBAGAI UTARA */
     function initCompassSensor() {
       const handleOrientation = (e) => {
         let compassHeading = null;
@@ -410,6 +407,7 @@
       if (degText) degText.textContent = `${normalizedDeg}°`;
     }
 
+    /* PERBAIKAN GRAFIK ELEVASI (SKALA BENAR TIDAK MENURUN TERUS) */
     function initElevationChart() {
       const ctx = document.getElementById('elevationChart').getContext('2d');
       elevationChartInstance = new Chart(ctx, {
@@ -420,7 +418,7 @@
             label: 'Elevasi (mdpl)',
             data: [],
             borderColor: '#38bdf8',
-            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            backgroundColor: 'rgba(56, 189, 248, 0.15)',
             borderWidth: 2,
             fill: true,
             tension: 0.3,
@@ -433,7 +431,11 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { color: '#334155' } },
-            y: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { color: '#334155' } }
+            y: { 
+              ticks: { color: '#94a3b8', font: { size: 8 } }, 
+              grid: { color: '#334155' },
+              suggestedMin: 0
+            }
           }
         }
       });
@@ -444,7 +446,7 @@
       const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
       elevationChartInstance.data.labels.push(timeNow);
       elevationChartInstance.data.datasets[0].data.push(alt);
-      if (elevationChartInstance.data.labels.length > 25) {
+      if (elevationChartInstance.data.labels.length > 20) {
         elevationChartInstance.data.labels.shift();
         elevationChartInstance.data.datasets[0].data.shift();
       }
@@ -501,7 +503,6 @@
       });
     }
 
-    /* MENAMPILKAN ANGGOTA LAIN DI PETA BESERTA NAMA & WARNA JALUR RANDOM */
     function listenToTeamMembers() {
       if (!myTeamGroup) return;
       db.ref(`teams/${myTeamGroup}`).on('value', (snapshot) => {
@@ -510,17 +511,14 @@
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
-            // Sembunyikan nama user sendiri di device sendiri, tapi tampilkan user lain (misal HP <-> PC)
             if (member.name !== myTeamName) {
               const memberColor = stringToColor(member.name);
 
-              // 1. Gambar Track Line Anggota Lain dengan Warna Random Unik
               if (member.path && Array.isArray(member.path) && member.path.length > 1) {
                 const memberTrackLine = L.polyline(member.path, { color: memberColor, weight: 5, opacity: 0.9 });
                 teamLayerGroup.addLayer(memberTrackLine);
               }
 
-              // 2. Gambar Marker & Label Nama Anggota Lain
               const memberMarker = L.circleMarker([member.lat, member.lng], {
                 radius: 10, color: '#ffffff', fillColor: memberColor, fillOpacity: 1, weight: 2
               }).bindPopup(`<b>👥 ${member.name}</b><br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
@@ -772,7 +770,7 @@
       const container = document.getElementById('history-list-container');
       container.innerHTML = savedHistory.length === 0 ? '<p style="color:#94a3b8; text-align:center;">Belum ada riwayat.</p>' : '';
       savedHistory.forEach((trip, index) => {
-        let downloadBtnHTML = trip.gpxData ? `<button class="menu-btn" style="background:#0284c7; color:#white; margin-top:4px;" onclick="downloadTripGPX(${index})">⬇️ Download GPX</button>` : '';
+        let downloadBtnHTML = trip.gpxData ? `<button class="menu-btn" style="background:#0284c7; color:#fff; margin-top:4px;" onclick="downloadTripGPX(${index})">⬇️ Download GPX</button>` : '';
         container.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;"><div style="width:100%; display:flex; justify-content:space-between;"><strong>📅 ${trip.date}</strong><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteHistory(${index})">Hapus</button></div><small style="color:#38bdf8; margin-top:2px;">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>${downloadBtnHTML}</div>`;
       });
       document.getElementById('history-count').textContent = savedHistory.length;
@@ -781,7 +779,7 @@
     function downloadTripGPX(index) {
       const trip = savedHistory[index];
       if (!trip || !trip.gpxData) return;
-      const blob = new Blob([trip.gpxData], { type: 'application/gpx+xml' });
+      const blob = new Blob([trip.gpxData], { type: 'application/gpx+xml;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -819,7 +817,7 @@
       map.closePopup();
     }
 
-    function openModal(id) { document.getElementById(id).style.display = 'comblock' || 'block'; }
+    function openModal(id) { document.getElementById(id).style.display = 'block'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
     window.onload = initMap;
