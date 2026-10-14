@@ -98,16 +98,16 @@
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
     #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
 
-    /* CSS Label Nama Tim di Peta agar Selalu Muncul */
-    .team-label { 
-      background: rgba(15, 23, 42, 0.95) !important; 
-      border: 1px solid #38bdf8 !important; 
-      color: #f8fafc !important; 
-      font-weight: 700 !important; 
-      font-size: 0.65rem !important; 
-      padding: 3px 7px !important; 
-      border-radius: 6px !important; 
-      box-shadow: 0 3px 6px rgba(0,0,0,0.5) !important; 
+    /* Styling tooltip nama agar selalu terlihat jelas di peta */
+    .leaflet-tooltip.team-label {
+      background: rgba(15, 23, 42, 0.95) !important;
+      border: 1px solid #38bdf8 !important;
+      color: #38bdf8 !important;
+      font-weight: 700 !important;
+      font-size: 0.7rem !important;
+      padding: 3px 6px !important;
+      border-radius: 6px !important;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5) !important;
       white-space: nowrap !important;
     }
 	
@@ -158,9 +158,9 @@
     </div>
   </div>
 
-  <!-- Area Peta & Kompas (Berpatokan Atas HP sebagai Utara) -->
+  <!-- Area Peta & Kompas -->
   <div class="map-container">
-    <div class="compass-widget" onclick="requestCompassPermission()" title="Ketuk untuk Aktifkan Kompas Fisik">
+    <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
         <circle cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
@@ -208,7 +208,7 @@
     </div>
   </div>
 
-  <!-- MODAL RIWAYAT TRIP & DOWNLOAD GPX -->
+  <!-- MODAL RIWAYAT TRIP -->
   <div id="history-modal" class="modal">
     <div class="modal-content">
       <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Download GPX</h3>
@@ -226,8 +226,8 @@
     <div class="modal-content">
       <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Track Line</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="team-group-input" placeholder="Nama Grup (Tanpa Spasi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
-        <input type="text" id="team-name-input" placeholder="Nama Anda (contoh: Budi / PC1)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-group-input" placeholder="Nama Grup (Misal: GunungArjuno)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-name-input" placeholder="Nama Anda (Misal: mem atau juki)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
       </div>
       <div style="display: flex; gap: 6px;">
         <button class="btn btn-sky" style="flex: 1; padding: 8px;" onclick="toggleLiveTracking(true)">Aktifkan Live</button>
@@ -290,6 +290,20 @@
     let myTeamGroup = localStorage.getItem('team_group') || '';
     let myTeamName = localStorage.getItem('team_name') || '';
     let liveSyncInterval = null;
+
+    // Fungsi pembuat warna acak yang konsisten berdasarkan nama user
+    function stringToColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let color = '#';
+      for (let i = 0; i < 3; i++) {
+        let value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+      }
+      return color;
+    }
 
     function initMap() {
       const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri' });
@@ -359,19 +373,16 @@
         });
     }
 
-    /* KOMPAS FISIK: BAGIAN ATAS HP SEBAGAI UTARA */
+    /* KOMPAS FISIK: ATAS HP SEBAGAI UTARA */
     function initCompassSensor() {
       const handleOrientation = (e) => {
         let compassHeading = null;
         if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
-          compassHeading = e.webkitCompassHeading; // iPhone/Safari
+          compassHeading = e.webkitCompassHeading;
         } else if (e.alpha !== null && e.alpha !== undefined) {
-          compassHeading = 360 - e.alpha; // Android Chrome
+          compassHeading = 360 - e.alpha;
         }
-
-        if (compassHeading !== null) {
-          rotateCompass(compassHeading);
-        }
+        if (compassHeading !== null) rotateCompass(compassHeading);
       };
 
       if (window.DeviceOrientationEvent) {
@@ -386,7 +397,7 @@
           if (resp === 'granted') alert("Sensor Kompas Diizinkan!");
         }).catch(console.error);
       } else {
-        alert("Kompas Aktif: Bagian atas HP Anda adalah arah Utara.");
+        alert("Kompas Aktif: Bagian atas HP adalah arah Utara.");
       }
     }
 
@@ -456,12 +467,12 @@
         document.getElementById('team-status-label').textContent = "Aktif";
         document.getElementById('team-status-label').style.color = "#34d399";
         closeModal('team-modal');
-        alert(`Live tracking aktif untuk grup "${myTeamGroup}"!`);
+        alert(`Live tracking aktif untuk grup "${myTeamGroup}" sebagai "${myTeamName}"!`);
         
         listenToTeamMembers();
         
         if (liveSyncInterval) clearInterval(liveSyncInterval);
-        liveSyncInterval = setInterval(updateMyTeamLocation, 3000);
+        liveSyncInterval = setInterval(updateMyTeamLocation, 2500);
         updateMyTeamLocation();
       } else {
         isLiveActive = false;
@@ -490,7 +501,7 @@
       });
     }
 
-    /* MENAMPILKAN NAMA ANGGOTA LAIN DI PETA (ANTAR HP / PC) */
+    /* MENAMPILKAN ANGGOTA LAIN DI PETA BESERTA NAMA & WARNA JALUR RANDOM */
     function listenToTeamMembers() {
       if (!myTeamGroup) return;
       db.ref(`teams/${myTeamGroup}`).on('value', (snapshot) => {
@@ -499,15 +510,19 @@
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
-            // Sembunyikan nama user sendiri di device sendiri, tapi tampilkan user lain (baik di HP maupun PC)
+            // Sembunyikan nama user sendiri di device sendiri, tapi tampilkan user lain (misal HP <-> PC)
             if (member.name !== myTeamName) {
+              const memberColor = stringToColor(member.name);
+
+              // 1. Gambar Track Line Anggota Lain dengan Warna Random Unik
               if (member.path && Array.isArray(member.path) && member.path.length > 1) {
-                const memberTrackLine = L.polyline(member.path, { color: '#a855f7', weight: 4, opacity: 0.8 });
+                const memberTrackLine = L.polyline(member.path, { color: memberColor, weight: 5, opacity: 0.9 });
                 teamLayerGroup.addLayer(memberTrackLine);
               }
 
+              // 2. Gambar Marker & Label Nama Anggota Lain
               const memberMarker = L.circleMarker([member.lat, member.lng], {
-                radius: 10, color: '#ffffff', fillColor: '#f59e0b', fillOpacity: 1, weight: 2
+                radius: 10, color: '#ffffff', fillColor: memberColor, fillOpacity: 1, weight: 2
               }).bindPopup(`<b>👥 ${member.name}</b><br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
               
               memberMarker.bindTooltip(member.name, { permanent: true, direction: 'top', className: 'team-label' });
@@ -612,6 +627,8 @@
       if (!userMarker) {
         userMarker = L.circleMarker([currentLat, currentLng], { radius: 9, color: '#ffffff', fillColor: '#38bdf8', fillOpacity: 1, weight: 2 }).addTo(map);
       } else { userMarker.setLatLng([currentLat, currentLng]); }
+
+      if (isLiveActive) updateMyTeamLocation();
 
       if (isRecording) {
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
@@ -721,7 +738,6 @@
       const distanceText = document.getElementById('trip-distance').textContent;
 
       if (confirm(`Pendakian Selesai!\n\nDurasi: ${durationText}\nJarak: ${distanceText}\nElevasi Max: ${maxElevation}m\n\nSimpan trip ke Riwayat?`)) {
-        // Konversi track points saat ini menjadi format GPX XML untuk fitur Download
         let gpxTrackXML = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="iGuide Pro">\n  <trk>\n    <name>Trip ${tripStartDateStr}</name>\n    <trkseg>\n`;
         recordedTrackPoints.forEach(pt => {
           gpxTrackXML += `      <trkpt lat="${pt[0]}" lon="${pt[1]}"></trkpt>\n`;
@@ -803,7 +819,7 @@
       map.closePopup();
     }
 
-    function openModal(id) { document.getElementById(id).style.display = 'block'; }
+    function openModal(id) { document.getElementById(id).style.display = 'comblock' || 'block'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
     window.onload = initMap;
