@@ -407,16 +407,16 @@
       if (degText) degText.textContent = `${normalizedDeg}°`;
     }
 
-    /* PERBAIKAN GRAFIK ELEVASI (SKALA BENAR TIDAK MENURUN TERUS) */
+    /* PERBAIKAN SKALA GRAFIK ELEVASI AGAR TIDAK BUG/MENURUN TERUS */
     function initElevationChart() {
       const ctx = document.getElementById('elevationChart').getContext('2d');
       elevationChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: [],
+          labels: ['Mulai'],
           datasets: [{
             label: 'Elevasi (mdpl)',
-            data: [],
+            data: [currentAlt],
             borderColor: '#38bdf8',
             backgroundColor: 'rgba(56, 189, 248, 0.15)',
             borderWidth: 2,
@@ -434,7 +434,8 @@
             y: { 
               ticks: { color: '#94a3b8', font: { size: 8 } }, 
               grid: { color: '#334155' },
-              suggestedMin: 0
+              min: 0,
+              suggestedMax: 2000
             }
           }
         }
@@ -444,9 +445,16 @@
     function updateChartData(alt) {
       if (!elevationChartInstance) return;
       const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+      
+      // Jika data masih default awal, bersihkan dulu agar tidak menumpuk
+      if (elevationChartInstance.data.labels.length === 1 && elevationChartInstance.data.labels[0] === 'Mulai') {
+        elevationChartInstance.data.labels = [];
+        elevationChartInstance.data.datasets[0].data = [];
+      }
+
       elevationChartInstance.data.labels.push(timeNow);
       elevationChartInstance.data.datasets[0].data.push(alt);
-      if (elevationChartInstance.data.labels.length > 20) {
+      if (elevationChartInstance.data.labels.length > 25) {
         elevationChartInstance.data.labels.shift();
         elevationChartInstance.data.datasets[0].data.shift();
       }
@@ -531,6 +539,7 @@
       });
     }
 
+    /* PERBAIKAN ELEVASI LAUT (MENJADI 0 MDPL) */
     function calculateElevationForCoord(lat, lng, callback) {
       const peakLat = -7.5991, peakLng = 112.6223;
       const distKm = Math.hypot(lat - peakLat, lng - peakLng) * 111;
@@ -539,18 +548,30 @@
       fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`)
         .then(res => res.json())
         .then(data => {
-          if (data && data.results && data.results[0] && data.results[0].elevation > 0) {
+          if (data && data.results && data.results[0] && data.results[0].elevation !== undefined) {
             let alt = Math.round(data.results[0].elevation);
-            if (distKm < 0.5 && alt < 1600) alt += 40;
-            callback(alt);
-          } else { fallbackEstimation(lat, lng, callback); }
+            if (alt <= 2) {
+              callback(0);
+            } else {
+              if (distKm < 0.5 && alt < 1600) alt += 40;
+              callback(alt);
+            }
+          } else { 
+            fallbackEstimation(lat, lng, callback); 
+          }
         }).catch(() => fallbackEstimation(lat, lng, callback));
     }
 
     function fallbackEstimation(lat, lng, callback) {
       const peakLat = -7.5991, peakLng = 112.6223;
       const distKm = Math.hypot(lat - peakLat, lng - peakLng) * 111;
-      callback(Math.max(20, Math.round(1653 - (distKm * 320))));
+      let estimated = Math.round(1653 - (distKm * 320));
+      
+      if (estimated < 15) {
+        callback(0);
+      } else {
+        callback(Math.max(0, estimated));
+      }
     }
 
     function locateUser() {
