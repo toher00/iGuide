@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>iGuide Pro - by : @xhieua</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Firebase Realtime Database SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <!-- Chart.js untuk Grafik Elevasi -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    
+    html, body { 
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden; 
+      position: fixed; 
+      background-color: #090d16; 
+      color: #f8fafc; 
+    }
+    
+    body { display: flex; flex-direction: column; }
+
+    header { background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
+    header h1 { font-size: 0.85rem; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 6px; }
+    .owner-tag { font-size: 0.65rem; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3); font-weight: 600; }
+    
+    .recorder-panel { background: rgba(15, 23, 42, 0.95); padding: 5px 12px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; font-size: 0.65rem; color: #94a3b8; flex-shrink: 0; }
+
+    .menu-panel { background: #0f172a; padding: 5px 10px; display: flex; gap: 6px; overflow-x: auto; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
+    .menu-panel::-webkit-scrollbar { display: none; }
+    .menu-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 500; white-space: nowrap; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    .menu-btn:active { background: #334155; }
+
+    .status-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 5px 8px; background: #0f172a; text-align: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
+    .status-card { background: rgba(30, 41, 59, 0.7); padding: 4px 2px; border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.4); }
+    .status-card h4 { font-size: 0.45rem; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 1px; }
+    .status-card p { font-size: 0.7rem; font-weight: 700; color: #38bdf8; }
+
+    .map-container { flex-grow: 1; width: 100%; position: relative; display: flex; overflow: hidden; }
+    #map { width: 100%; height: 100%; background: #0f172a; z-index: 1; }
+
+    .compass-widget {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 75px;
+      height: 75px;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      border: 2px solid #38bdf8;
+      border-radius: 50%;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      cursor: pointer;
+    }
+    .compass-rose { width: 56px; height: 56px; transition: transform 0.1s ease-out; }
+    .compass-deg-badge {
+      font-size: 0.5rem;
+      font-weight: 700;
+      color: #34d399;
+      background: #0f172a;
+      padding: 1px 4px;
+      border-radius: 3px;
+      border: 1px solid #334155;
+      margin-top: -4px;
+    }
+
+    .controls { padding: 8px 10px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; border-top: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
+    .btn { padding: 8px 2px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: white; background: #2563eb; font-size: 0.6rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .btn:active { transform: scale(0.96); }
+    .btn-emerald { background: #059669; }
+    .btn-rose { background: #e11d48; }
+    .btn-amber { background: #d97706; }
+    .btn-sky { background: #0284c7; }
+    .btn-purple { background: #7c3aed; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .mode-tag { font-size: 0.5rem; padding: 2px 5px; border-radius: 4px; font-weight: 600; }
+    .online { background: #065f46; color: #34d399; }
+    .offline { background: #7f1d1d; color: #fca5a5; }
+
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 2000; padding: 12px; overflow-y: auto; }
+    .modal-content { background: #1e293b; padding: 16px; border-radius: 10px; max-width: 440px; margin: 30px auto; border: 1px solid #334155; }
+    .list-item { background: #0f172a; padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #38bdf8; border: 1px solid #1e293b; }
+    
+    .pos-popup-img { width: 100%; max-height: 110px; object-fit: cover; border-radius: 6px; margin-top: 6px; border: 1px solid #334155; cursor: pointer; }
+    #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
+    #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
+
+    .team-label { background: rgba(15, 23, 42, 0.9); border: 1px solid #38bdf8; color: #f8fafc; font-weight: 600; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+	
+	.leaflet-control-attribution { display: none !important; }
+ </style>
+</head>
+<body>
+
+  <header>
+    <h1>🧭 iGuide Pro</h1>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="owner-tag">by : @xhieua</span>
+      <span id="connection-status" class="mode-tag online">ONLINE</span>
+    </div>
+  </header>
+
+  <div class="recorder-panel">
+    <div>⏱️ <strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
+    <div>📅 <span id="trip-datetime">-</span></div>
+    <div id="recorder-state" style="color: #34d399; font-weight: 600;">Siap</div>
+  </div>
+
+  <div class="menu-panel">
+    <input type="file" id="gpx-file-input" accept=".gpx" style="display: none;" onchange="handleGPXUpload(this)">
+    <button class="menu-btn" onclick="document.getElementById('gpx-file-input').click()">📂 Upload GPX</button>
+    <button class="menu-btn" onclick="openModal('gpx-modal')">🗺️ Pustaka GPX (<span id="gpx-count">0</span>)</button>
+    <button class="menu-btn" onclick="openModal('history-modal')">📜 Riwayat Trip (<span id="history-count">0</span>)</button>
+    <button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="openModal('team-modal')">👥 Live Tim (<span id="team-status-label">Off</span>)</button>
+  </div>
+
+  <!-- Status Bar Utama -->
+  <div class="status-bar">
+    <div class="status-card">
+      <h4>Ketinggian</h4>
+      <p id="altitude">-- mdpl</p>
+    </div>
+    <div class="status-card">
+      <h4>Cuaca Realtime</h4>
+      <p id="weather-info">Memuat...</p>
+    </div>
+    <div class="status-card">
+      <h4>Jarak</h4>
+      <p id="trip-distance">0.00 km</p>
+    </div>
+    <div class="status-card">
+      <h4>GPS</h4>
+      <p id="gps-status" style="color: #f59e0b;">Cari</p>
+    </div>
+  </div>
+
+  <!-- Area Peta & Kompas -->
+  <div class="map-container">
+    <div class="compass-widget" onclick="requestCompassPermission()" title="Arah Kiblat / Barat">
+      <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
+        
+        <!-- Jarum UTARA -->
+        <polygon points="50,6 43,50 50,44" fill="#ef4444"/>
+        <polygon points="50,6 57,50 50,44" fill="#f87171"/>
+        
+        <!-- Jarum SELATAN -->
+        <polygon points="50,94 43,50 50,56" fill="#64748b"/>
+        <polygon points="50,94 57,50 50,56" fill="#94a3b8"/>
+        
+        <!-- Jarum BARAT / KIBLAT -->
+        <polygon points="6,50 50,43 44,50" fill="#10b981"/>
+        <polygon points="6,50 50,57 44,50" fill="#34d399"/>
+        
+        <!-- Jarum TIMUR -->
+        <polygon points="94,50 50,43 56,50" fill="#64748b"/>
+        <polygon points="94,50 50,57 56,50" fill="#94a3b8"/>
+
+        <text x="45" y="20" font-size="13" font-weight="bold" fill="#ef4444">N</text>
+        <text x="81" y="54" font-size="11" font-weight="bold" fill="#94a3b8">E</text>
+        <text x="46" y="88" font-size="11" font-weight="bold" fill="#94a3b8">S</text>
+        <text x="11" y="54" font-size="12" font-weight="bold" fill="#10b981">W</text>
+      </svg>
+      <div class="compass-deg-badge" id="compass-deg">0°</div>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-sky" onclick="locateUser()">📍 Posisi</button>
+    <button class="btn btn-purple" onclick="openModal('add-pos-modal')">🚩 Tandai</button>
+    <button class="btn btn-emerald" id="btn-start-rec" onclick="startRecording()">▶️ Start</button>
+    <button class="btn btn-amber" id="btn-pause-rec" onclick="pauseRecording()" disabled>⏸️ Pause</button>
+    <button class="btn btn-rose" id="btn-stop-rec" onclick="stopRecording()" disabled>⏹️ Selesai</button>
+  </div>
+
+  <!-- MODAL PUSTAKA GPX -->
+  <div id="gpx-modal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">Pustaka Jalur GPX Gunung</h3>
+      <div id="gpx-list-container" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px;"></div>
+      <button class="btn btn-rose" style="width: 100%; padding: 8px;" onclick="closeModal('gpx-modal')">Tutup</button>
+    </div>
+  </div>
+
+  <!-- MODAL RIWAYAT TRIP & GRAFIK -->
+  <div id="history-modal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Grafik</h3>
+      <div id="history-list-container" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;"></div>
+      <div style="background: #0f172a; padding: 8px; border-radius: 6px; border: 1px solid #334155; margin-bottom: 10px;">
+        <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📈 Grafik Elevasi Sesi Ini</h4>
+        <canvas id="elevationChart" style="width:100%; height:100px;"></canvas>
+      </div>
+      <button class="btn btn-rose" style="width: 100%; padding: 8px;" onclick="closeModal('history-modal')">Tutup</button>
+    </div>
+  </div>
+
+  <!-- MODAL LIVE TIM -->
+  <div id="team-modal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Pantau Posisi & Track Record Tim</h3>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+        <input type="text" id="team-group-input" placeholder="Nama Grup (Cth: TimPenanggungan)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-name-input" placeholder="Nama Anda (Cth: Budi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button class="btn btn-sky" style="flex: 1; padding: 8px;" onclick="toggleLiveTracking(true)">Aktifkan Live</button>
+        <button class="btn btn-rose" style="padding: 8px;" onclick="toggleLiveTracking(false)">Matikan</button>
+      </div>
+      <button class="btn" style="width: 100%; margin-top: 8px; background: #334155;" onclick="closeModal('team-modal')">Tutup</button>
+    </div>
+  </div>
+
+  <!-- MODAL POS -->
+  <div id="add-pos-modal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">🚩 Tandai Pos / Checkpoint Baru</h3>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+        <input type="text" id="pos-name-input" placeholder="Nama Pos (Cth: Pos 2)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <label style="font-size: 0.7rem; color: #94a3b8;">Unggah Foto Kondisi Pos:</label>
+        <input type="file" id="pos-photo-input" accept="image/*" capture="environment" style="font-size: 0.7rem; color: #94a3b8;">
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button class="btn btn-emerald" style="flex: 1; padding: 8px;" onclick="saveCheckpointWithPhoto()">Simpan Pos</button>
+        <button class="btn btn-rose" style="padding: 8px;" onclick="closeModal('add-pos-modal')">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="photo-lightbox" onclick="this.style.display='none'">
+    <img id="lightbox-img" src="">
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
+  <script>
+    const firebaseConfig = { databaseURL: "https://summitguide-pro-default-rtdb.firebaseio.com/" };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.database();
+
+    let map;
+    let userMarker;
+    let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
+    let lastLat = null, lastLng = null;
+    
+    let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
+    let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
+    let activeGPXLayerGroup = L.layerGroup();
+    let checkpointLayerGroup = L.layerGroup();
+    let teamLayerGroup = L.layerGroup();
+    let savedCheckpoints = JSON.parse(localStorage.getItem('saved_checkpoints_v17') || '[]');
+
+    let isRecording = false;
+    let tripTimerInterval = null;
+    let tripSeconds = 0;
+    let tripStartDateStr = "";
+    let recordedTrackPoints = [];
+    let liveTrackLine = null;
+    let totalDistanceMeters = 0;
+    let startElevation = 0;
+    let maxElevation = 0;
+    let elevationChartInstance = null;
+
+    let isLiveActive = false;
+    let myTeamGroup = localStorage.getItem('team_group') || '';
+    let myTeamName = localStorage.getItem('team_name') || '';
+    let teamDataRef = null;
+
+    function initMap() {
+      const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri' });
+      const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: 'OpenTopoMap' });
+
+      map = L.map('map', { zoomControl: false, layers: [satLayer] }).setView([currentLat, currentLng], 15);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      L.control.layers({ "🛰️ Satelit Nyata": satLayer, "⛰️ Kontur Topografi": topoLayer }, null, { position: 'topright' }).addTo(map);
+
+      activeGPXLayerGroup.addTo(map);
+      checkpointLayerGroup.addTo(map);
+      teamLayerGroup.addTo(map);
+
+      setTimeout(() => { map.invalidateSize(); }, 200);
+
+      updateDateTimeDisplay();
+      setInterval(updateDateTimeDisplay, 1000);
+
+      renderGPXLibrary();
+      renderHistoryList();
+      renderCheckpoints();
+      autoLoadAllGPXToMap();
+      initElevationChart();
+
+      if (myTeamGroup && myTeamName) {
+        document.getElementById('team-group-input').value = myTeamGroup;
+        document.getElementById('team-name-input').value = myTeamName;
+      }
+
+      map.on('dblclick', function(e) {
+        calculateElevationForCoord(e.latlng.lat, e.latlng.lng, function(checkedAlt) {
+          L.popup()
+            .setLatLng(e.latlng)
+            .setContent(`<div style="font-size:0.75rem;"><b>📍 Cek Elevasi</b><br>Lat: ${e.latlng.lat.toFixed(5)}<br>Lng: ${e.latlng.lng.toFixed(5)}<br>⛰️ <b>${checkedAlt} mdpl</b></div>`)
+            .openOn(map);
+        });
+      });
+
+      window.addEventListener('online', updateConn);
+      window.addEventListener('offline', updateConn);
+      updateConn();
+      startGPSWatch();
+      initCompassSensor();
+      fetchRealtimeWeather(currentLat, currentLng);
+    }
+
+    function fetchRealtimeWeather(lat, lng) {
+      if (!navigator.onLine) {
+        document.getElementById('weather-info').textContent = "Offline";
+        return;
+      }
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.current) {
+            const temp = Math.round(data.current.temperature_2m);
+            const code = data.current.weather_code;
+            let desc = "Cerah";
+            if (code >= 1 && code <= 3) desc = "Berawan";
+            else if (code >= 51 && code <= 67) desc = "Hujan";
+            else if (code >= 95) desc = "Badai";
+            document.getElementById('weather-info').textContent = `${temp}°C (${desc})`;
+          }
+        }).catch(() => {
+          document.getElementById('weather-info').textContent = `${Math.round(28 - ((currentAlt / 100) * 0.65))}°C`;
+        });
+    }
+
+    function initCompassSensor() {
+      if (window.DeviceOrientationEvent) {
+        window.addEventListener('deviceorientation', (event) => {
+          let alpha = event.alpha;
+          if (alpha !== null && alpha !== undefined) {
+            rotateCompass(360 - alpha);
+          }
+        }, true);
+      }
+    }
+
+    function requestCompassPermission() {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(resp => { if (resp === 'granted') alert("Kompas diizinkan!"); }).catch(console.error);
+      } else {
+        alert("Sensor kompas aktif!");
+      }
+    }
+
+    function rotateCompass(deg) {
+      const svgEl = document.getElementById('compass-svg');
+      const degText = document.getElementById('compass-deg');
+
+      if (svgEl) svgEl.style.transform = `rotate(${deg}deg)`;
+      let normalizedDeg = (Math.round(360 - deg)) % 360;
+      if (degText) degText.textContent = `${normalizedDeg}°`;
+    }
+
+    function calculateHeading(lat1, lon1, lat2, lon2) {
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      lat1 = lat1 * Math.PI / 180;
+      lat2 = lat2 * Math.PI / 180;
+      const y = Math.sin(dLon) * Math.cos(lat2);
+      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+      let brng = Math.atan2(y, x) * 180 / Math.PI;
+      return (brng + 360) % 360;
+    }
+
+    function initElevationChart() {
+      const ctx = document.getElementById('elevationChart').getContext('2d');
+      elevationChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Elevasi (mdpl)',
+            data: [],
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { color: '#334155' } },
+            y: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { color: '#334155' } }
+          }
+        }
+      });
+    }
+
+    function updateChartData(alt) {
+      if (!elevationChartInstance) return;
+      const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+      elevationChartInstance.data.labels.push(timeNow);
+      elevationChartInstance.data.datasets[0].data.push(alt);
+      if (elevationChartInstance.data.labels.length > 25) {
+        elevationChartInstance.data.labels.shift();
+        elevationChartInstance.data.datasets[0].data.shift();
+      }
+      elevationChartInstance.update();
+    }
+
+    function toggleLiveTracking(enable) {
+      if (enable) {
+        myTeamGroup = document.getElementById('team-group-input').value.trim();
+        myTeamName = document.getElementById('team-name-input').value.trim();
+        if (!myTeamGroup || !myTeamName) { alert("Isi Nama Grup & Nama Anda!"); return; }
+
+        localStorage.setItem('team_group', myTeamGroup);
+        localStorage.setItem('team_name', myTeamName);
+        isLiveActive = true;
+
+        document.getElementById('team-status-label').textContent = "Aktif";
+        document.getElementById('team-status-label').style.color = "#34d399";
+        closeModal('team-modal');
+        alert(`Live tracking aktif untuk grup "${myTeamGroup}"!`);
+        listenToTeamMembers();
+      } else {
+        isLiveActive = false;
+        if (teamDataRef) teamDataRef.remove();
+        teamLayerGroup.clearLayers();
+        document.getElementById('team-status-label').textContent = "Off";
+        document.getElementById('team-status-label').style.color = "#fff";
+        closeModal('team-modal');
+        alert("Live tracking dimatikan.");
+      }
+    }
+
+    function updateMyTeamLocation() {
+      if (!isLiveActive || !myTeamGroup || !myTeamName) return;
+      const cleanName = myTeamName.replace(/[.#$\/\[\]]/g, "_");
+      teamDataRef = db.ref(`teams/${myTeamGroup}/${cleanName}`);
+      
+      // Ambil riwayat path lokal jika sedang merekam untuk dikirim ke firebase
+      let currentPathSnapshot = isRecording ? recordedTrackPoints : [];
+
+      teamDataRef.set({
+        name: myTeamName,
+        lat: currentLat,
+        lng: currentLng,
+        alt: currentAlt,
+        path: currentPathSnapshot,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      });
+    }
+
+    function listenToTeamMembers() {
+      if (!myTeamGroup) return;
+      db.ref(`teams/${myTeamGroup}`).on('value', (snapshot) => {
+        const members = snapshot.val();
+        teamLayerGroup.clearLayers();
+        if (members) {
+          Object.keys(members).forEach(key => {
+            const member = members[key];
+            if (member.name !== myTeamName) {
+              // 1. Gambar Track Record / Garis Jalur Anggota Tim jika ada
+              if (member.path && Array.isArray(member.path) && member.path.length > 1) {
+                const memberTrackLine = L.polyline(member.path, { color: '#a855f7', weight: 4, opacity: 0.7 });
+                teamLayerGroup.addLayer(memberTrackLine);
+              }
+
+              // 2. Gambar Titik Marker Posisi Terkini Anggota Tim
+              const memberMarker = L.circleMarker([member.lat, member.lng], {
+                radius: 10, color: '#ffffff', fillColor: '#f59e0b', fillOpacity: 1, weight: 2
+              }).bindPopup(`<b>👥 ${member.name}</b><br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
+              
+              memberMarker.bindTooltip(member.name, { permanent: true, direction: 'top', className: 'team-label' });
+              teamLayerGroup.addLayer(memberMarker);
+            }
+          });
+        }
+      });
+    }
+
+    function calculateElevationForCoord(lat, lng, callback) {
+      const peakLat = -7.5991, peakLng = 112.6223;
+      const distKm = Math.hypot(lat - peakLat, lng - peakLng) * 111;
+      if (distKm < 0.15) { callback(1653); return; }
+
+      fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.results && data.results[0] && data.results[0].elevation > 0) {
+            let alt = Math.round(data.results[0].elevation);
+            if (distKm < 0.5 && alt < 1600) alt += 40;
+            callback(alt);
+          } else { fallbackEstimation(lat, lng, callback); }
+        }).catch(() => fallbackEstimation(lat, lng, callback));
+    }
+
+    function fallbackEstimation(lat, lng, callback) {
+      const peakLat = -7.5991, peakLng = 112.6223;
+      const distKm = Math.hypot(lat - peakLat, lng - peakLng) * 111;
+      callback(Math.max(20, Math.round(1653 - (distKm * 320))));
+    }
+
+    function locateUser() {
+      if (currentLat && currentLng) map.setView([currentLat, currentLng], 16);
+      else alert("Mencari sinyal GPS...");
+    }
+
+    function saveCheckpointWithPhoto() {
+      const nameInput = document.getElementById('pos-name-input').value.trim();
+      const photoInput = document.getElementById('pos-photo-input');
+      if (!nameInput) { alert("Masukkan nama pos!"); return; }
+
+      const processSave = (photoBase64) => {
+        const cp = { id: Date.now(), name: nameInput, lat: currentLat, lng: currentLng, alt: currentAlt, photo: photoBase64 || null };
+        savedCheckpoints.push(cp);
+        localStorage.setItem('saved_checkpoints_v17', JSON.stringify(savedCheckpoints));
+        renderCheckpoints();
+        closeModal('add-pos-modal');
+        document.getElementById('pos-name-input').value = '';
+        document.getElementById('pos-photo-input').value = '';
+        alert(`Berhasil menyimpan ${nameInput}!`);
+      };
+
+      if (photoInput.files && photoInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => processSave(e.target.result);
+        reader.readAsDataURL(photoInput.files[0]);
+      } else { processSave(null); }
+    }
+
+    function updateDateTimeDisplay() {
+      const now = new Date();
+      document.getElementById('trip-datetime').textContent = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function updateConn() {
+      const el = document.getElementById('connection-status');
+      if(navigator.onLine) { el.textContent='ONLINE'; el.className='mode-tag online'; }
+      else { el.textContent='OFFLINE'; el.className='mode-tag offline'; }
+    }
+
+    function startGPSWatch() {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.watchPosition(position => {
+          lastLat = currentLat;
+          lastLng = currentLng;
+          currentLat = position.coords.latitude;
+          currentLng = position.coords.longitude;
+
+          if (lastLat !== null && lastLng !== null && (lastLat !== currentLat || lastLng !== currentLng)) {
+            let heading = calculateHeading(lastLat, lastLng, currentLat, currentLng);
+            rotateCompass(360 - heading);
+          }
+
+          let rawAlt = position.coords.altitude;
+          if (rawAlt === null || rawAlt === undefined || rawAlt <= 5) {
+            calculateElevationForCoord(currentLat, currentLng, (estAlt) => {
+              currentAlt = estAlt;
+              updateUIStatus();
+            });
+          } else {
+            currentAlt = Math.round(rawAlt);
+            updateUIStatus();
+          }
+        }, () => {
+          document.getElementById('gps-status').textContent = "Err";
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+      }
+    }
+
+    function updateUIStatus() {
+      document.getElementById('altitude').textContent = `${currentAlt} mdpl`;
+      document.getElementById('gps-status').textContent = "Akurat";
+      document.getElementById('gps-status').style.color = "#34d399";
+      fetchRealtimeWeather(currentLat, currentLng);
+
+      if (!userMarker) {
+        userMarker = L.circleMarker([currentLat, currentLng], { radius: 9, color: '#ffffff', fillColor: '#38bdf8', fillOpacity: 1, weight: 2 }).addTo(map);
+      } else { userMarker.setLatLng([currentLat, currentLng]); }
+
+      if (isLiveActive) updateMyTeamLocation();
+
+      if (isRecording) {
+        const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
+        const newPt = [currentLat, currentLng];
+        recordedTrackPoints.push(newPt);
+
+        if (lastPoint) {
+          totalDistanceMeters += map.distance(lastPoint, newPt);
+          document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
+        }
+
+        if (currentAlt > maxElevation) maxElevation = currentAlt;
+        updateChartData(currentAlt);
+
+        if (!liveTrackLine) {
+          liveTrackLine = L.polyline(recordedTrackPoints, {color: '#22c55e', weight: 5}).addTo(map);
+        } else { liveTrackLine.setLatLngs(recordedTrackPoints); }
+      }
+    }
+
+    function handleGPXUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        savedGPXFiles.push({ name: file.name.replace('.gpx', ''), content: e.target.result, date: new Date().toLocaleDateString() });
+        localStorage.setItem('saved_gpx_library_v17', JSON.stringify(savedGPXFiles));
+        renderGPXLibrary();
+        autoLoadAllGPXToMap();
+        alert(`Jalur GPX "${file.name}" dimuat!`);
+      };
+      reader.readAsText(file);
+    }
+
+    function renderGPXLibrary() {
+      const container = document.getElementById('gpx-list-container');
+      container.innerHTML = savedGPXFiles.length === 0 ? '<p style="color:#94a3b8; text-align:center; padding:10px;">Kosong</p>' : '';
+      savedGPXFiles.forEach((gpx, index) => {
+        container.innerHTML += `<div class="list-item"><div><strong>⛰️ ${gpx.name}</strong></div><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteGPX(${index})">Hapus</button></div>`;
+      });
+      document.getElementById('gpx-count').textContent = savedGPXFiles.length;
+    }
+
+    function autoLoadAllGPXToMap() {
+      activeGPXLayerGroup.clearLayers();
+      savedGPXFiles.forEach(gpx => {
+        try {
+          const gpxLayer = new L.GPX(gpx.content, { async: true, polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } });
+          gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
+          activeGPXLayerGroup.addLayer(gpxLayer);
+        } catch (err) { console.error(err); }
+      });
+    }
+
+    function deleteGPX(index) {
+      savedGPXFiles.splice(index, 1);
+      localStorage.setItem('saved_gpx_library_v17', JSON.stringify(savedGPXFiles));
+      renderGPXLibrary();
+      autoLoadAllGPXToMap();
+    }
+
+    function startRecording() {
+      isRecording = true;
+      startElevation = currentAlt;
+      maxElevation = currentAlt;
+      tripStartDateStr = new Date().toLocaleString('id-ID');
+      if (recordedTrackPoints.length === 0) recordedTrackPoints = [[currentLat, currentLng]];
+
+      document.getElementById('btn-start-rec').disabled = true;
+      document.getElementById('btn-pause-rec').disabled = false;
+      document.getElementById('btn-stop-rec').disabled = false;
+      document.getElementById('recorder-state').textContent = "Merekam...";
+
+      if (!tripTimerInterval) {
+        tripTimerInterval = setInterval(() => {
+          tripSeconds++;
+          const days = Math.floor(tripSeconds / 86400);
+          const hrs = Math.floor((tripSeconds % 86400) / 3600);
+          const mins = Math.floor((tripSeconds % 3600) / 60);
+          const secs = tripSeconds % 60;
+          let timeStr = days > 0 ? `${days} Hari ` : '';
+          timeStr += `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+          document.getElementById('trip-timer').textContent = timeStr;
+        }, 1000);
+      }
+    }
+
+    function pauseRecording() {
+      isRecording = false;
+      clearInterval(tripTimerInterval);
+      tripTimerInterval = null;
+      document.getElementById('btn-start-rec').disabled = false;
+      document.getElementById('btn-start-rec').textContent = "▶️ Lanjut";
+      document.getElementById('btn-pause-rec').disabled = true;
+      document.getElementById('recorder-state').textContent = "Dijeda";
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      clearInterval(tripTimerInterval);
+      tripTimerInterval = null;
+
+      const durationText = document.getElementById('trip-timer').textContent;
+      const distanceText = document.getElementById('trip-distance').textContent;
+
+      if (confirm(`Pendakian Selesai!\n\nDurasi: ${durationText}\nJarak: ${distanceText}\nElevasi Max: ${maxElevation}m\n\nSimpan trip?`)) {
+        savedHistory.push({ date: tripStartDateStr, duration: durationText, distance: distanceText, startAlt: startElevation, maxAlt: maxElevation });
+        localStorage.setItem('saved_trip_history_v17', JSON.stringify(savedHistory));
+        renderHistoryList();
+        alert("Trip tersimpan!");
+      }
+
+      tripSeconds = 0; totalDistanceMeters = 0; recordedTrackPoints = [];
+      if (liveTrackLine) { map.removeLayer(liveTrackLine); liveTrackLine = null; }
+      document.getElementById('trip-timer').textContent = "00:00:00";
+      document.getElementById('trip-distance').textContent = "0.00 km";
+      document.getElementById('btn-start-rec').disabled = false;
+      document.getElementById('btn-start-rec').textContent = "▶️ Start";
+      document.getElementById('btn-pause-rec').disabled = true;
+      document.getElementById('btn-stop-rec').disabled = true;
+      document.getElementById('recorder-state').textContent = "Siap";
+    }
+
+    function renderHistoryList() {
+      const container = document.getElementById('history-list-container');
+      container.innerHTML = savedHistory.length === 0 ? '<p style="color:#94a3b8; text-align:center;">Belum ada riwayat.</p>' : '';
+      savedHistory.forEach((trip, index) => {
+        container.innerHTML += `<div class="list-item"><div><strong>📅 ${trip.date}</strong><br><small style="color:#38bdf8">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small></div><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteHistory(${index})">Hapus</button></div>`;
+      });
+      document.getElementById('history-count').textContent = savedHistory.length;
+    }
+
+    function deleteHistory(index) {
+      savedHistory.splice(index, 1);
+      localStorage.setItem('saved_trip_history_v17', JSON.stringify(savedHistory));
+      renderHistoryList();
+    }
+
+    function renderCheckpoints() {
+      checkpointLayerGroup.clearLayers();
+      savedCheckpoints.forEach((cp) => {
+        const photoHTML = cp.photo ? `<img src="${cp.photo}" class="pos-popup-img" onclick="openLightbox('${cp.photo}')">` : '';
+        const marker = L.marker([cp.lat, cp.lng]).bindPopup(`<div style="font-size:0.75rem;"><b>${cp.name}</b><br>Lat: ${cp.lat.toFixed(5)}<br>Lng: ${cp.lng.toFixed(5)}<br>Elevasi: ${cp.alt} mdpl${photoHTML}<button onclick="deleteCheckpoint(${cp.id})" style="background:#dc2626;color:#fff;border:none;padding:4px;width:100%;margin-top:6px;border-radius:4px;">Hapus</button></div>`);
+        checkpointLayerGroup.addLayer(marker);
+      });
+    }
+
+    function openLightbox(imgSrc) {
+      document.getElementById('lightbox-img').src = imgSrc;
+      document.getElementById('photo-lightbox').style.display = 'flex';
+    }
+
+    function deleteCheckpoint(id) {
+      savedCheckpoints = savedCheckpoints.filter(cp => cp.id !== id);
+      localStorage.setItem('saved_checkpoints_v17', JSON.stringify(savedCheckpoints));
+      renderCheckpoints();
+      map.closePopup();
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'block'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>
