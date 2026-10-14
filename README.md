@@ -64,7 +64,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
       cursor: pointer;
     }
-    .compass-rose { width: 56px; height: 56px; transition: transform 0.2s ease-out; }
+    .compass-rose { width: 56px; height: 56px; transition: transform 0.1s ease-out; }
     .compass-deg-badge {
       font-size: 0.5rem;
       font-weight: 700;
@@ -98,8 +98,18 @@
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
     #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
 
-    /* Label Nama Tim di Peta */
-    .team-label { background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8; color: #f8fafc; font-weight: 600; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap; }
+    /* CSS Label Nama Tim di Peta agar Selalu Muncul */
+    .team-label { 
+      background: rgba(15, 23, 42, 0.95) !important; 
+      border: 1px solid #38bdf8 !important; 
+      color: #f8fafc !important; 
+      font-weight: 700 !important; 
+      font-size: 0.65rem !important; 
+      padding: 3px 7px !important; 
+      border-radius: 6px !important; 
+      box-shadow: 0 3px 6px rgba(0,0,0,0.5) !important; 
+      white-space: nowrap !important;
+    }
 	
 	.leaflet-control-attribution { display: none !important; }
  </style>
@@ -148,9 +158,9 @@
     </div>
   </div>
 
-  <!-- Area Peta & Kompas -->
+  <!-- Area Peta & Kompas (Berpatokan Atas HP sebagai Utara) -->
   <div class="map-container">
-    <div class="compass-widget" onclick="alert('Kompas aktif menggunakan arah gerak GPS yang stabil.')" title="Indikator Arah">
+    <div class="compass-widget" onclick="requestCompassPermission()" title="Ketuk untuk Aktifkan Kompas Fisik">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
         <circle cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
@@ -198,10 +208,10 @@
     </div>
   </div>
 
-  <!-- MODAL RIWAYAT TRIP & GRAFIK -->
+  <!-- MODAL RIWAYAT TRIP & DOWNLOAD GPX -->
   <div id="history-modal" class="modal">
     <div class="modal-content">
-      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Grafik</h3>
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Download GPX</h3>
       <div id="history-list-container" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;"></div>
       <div style="background: #0f172a; padding: 8px; border-radius: 6px; border: 1px solid #334155; margin-bottom: 10px;">
         <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📈 Grafik Elevasi Sesi Ini</h4>
@@ -217,7 +227,7 @@
       <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Track Line</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
         <input type="text" id="team-group-input" placeholder="Nama Grup (Tanpa Spasi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
-        <input type="text" id="team-name-input" placeholder="Nama Anda (contoh: Budi)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-name-input" placeholder="Nama Anda (contoh: Budi / PC1)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
       </div>
       <div style="display: flex; gap: 6px;">
         <button class="btn btn-sky" style="flex: 1; padding: 8px;" onclick="toggleLiveTracking(true)">Aktifkan Live</button>
@@ -257,7 +267,6 @@
     let map;
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
-    let lastLat = null, lastLng = null;
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -324,6 +333,7 @@
       window.addEventListener('offline', updateConn);
       updateConn();
       startGPSWatch();
+      initCompassSensor();
       fetchRealtimeWeather(currentLat, currentLng);
     }
 
@@ -349,15 +359,35 @@
         });
     }
 
-    /* KALKULASI ARAH BERDASARKAN PERGERAKAN GPS (STABIL & ANTI-NGGAWUR) */
-    function calculateHeading(lat1, lon1, lat2, lon2) {
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      lat1 = lat1 * Math.PI / 180;
-      lat2 = lat2 * Math.PI / 180;
-      const y = Math.sin(dLon) * Math.cos(lat2);
-      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-      let brng = Math.atan2(y, x) * 180 / Math.PI;
-      return (brng + 360) % 360;
+    /* KOMPAS FISIK: BAGIAN ATAS HP SEBAGAI UTARA */
+    function initCompassSensor() {
+      const handleOrientation = (e) => {
+        let compassHeading = null;
+        if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+          compassHeading = e.webkitCompassHeading; // iPhone/Safari
+        } else if (e.alpha !== null && e.alpha !== undefined) {
+          compassHeading = 360 - e.alpha; // Android Chrome
+        }
+
+        if (compassHeading !== null) {
+          rotateCompass(compassHeading);
+        }
+      };
+
+      if (window.DeviceOrientationEvent) {
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+      }
+    }
+
+    function requestCompassPermission() {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(resp => {
+          if (resp === 'granted') alert("Sensor Kompas Diizinkan!");
+        }).catch(console.error);
+      } else {
+        alert("Kompas Aktif: Bagian atas HP Anda adalah arah Utara.");
+      }
     }
 
     function rotateCompass(deg) {
@@ -431,7 +461,7 @@
         listenToTeamMembers();
         
         if (liveSyncInterval) clearInterval(liveSyncInterval);
-        liveSyncInterval = setInterval(updateMyTeamLocation, 4000);
+        liveSyncInterval = setInterval(updateMyTeamLocation, 3000);
         updateMyTeamLocation();
       } else {
         isLiveActive = false;
@@ -460,7 +490,7 @@
       });
     }
 
-    /* MENAMPILKAN ANGGOTA LAIN DI PETA TANPA MENAMPILKAN NAMA USER SENDIRI */
+    /* MENAMPILKAN NAMA ANGGOTA LAIN DI PETA (ANTAR HP / PC) */
     function listenToTeamMembers() {
       if (!myTeamGroup) return;
       db.ref(`teams/${myTeamGroup}`).on('value', (snapshot) => {
@@ -469,15 +499,13 @@
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
-            // Pastikan nama user sendiri TIDAK dimunculkan di device sendiri
+            // Sembunyikan nama user sendiri di device sendiri, tapi tampilkan user lain (baik di HP maupun PC)
             if (member.name !== myTeamName) {
-              // 1. Gambar Track Line Anggota Tim Lain
               if (member.path && Array.isArray(member.path) && member.path.length > 1) {
                 const memberTrackLine = L.polyline(member.path, { color: '#a855f7', weight: 4, opacity: 0.8 });
                 teamLayerGroup.addLayer(memberTrackLine);
               }
 
-              // 2. Gambar Marker & Label Nama Anggota Tim Lain
               const memberMarker = L.circleMarker([member.lat, member.lng], {
                 radius: 10, color: '#ffffff', fillColor: '#f59e0b', fillOpacity: 1, weight: 2
               }).bindPopup(`<b>👥 ${member.name}</b><br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
@@ -557,16 +585,8 @@
           let accuracy = position.coords.accuracy;
           if (accuracy > 35) return;
 
-          lastLat = currentLat;
-          lastLng = currentLng;
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
-
-          // Hitung arah kompas stabil berdasarkan pergerakan koordinat GPS
-          if (lastLat !== null && lastLng !== null && (lastLat !== currentLat || lastLng !== currentLng)) {
-            let heading = calculateHeading(lastLat, lastLng, currentLat, currentLng);
-            rotateCompass(heading);
-          }
 
           let rawAlt = position.coords.altitude;
           if (rawAlt === null || rawAlt === undefined || rawAlt <= 5) {
@@ -700,11 +720,25 @@
       const durationText = document.getElementById('trip-timer').textContent;
       const distanceText = document.getElementById('trip-distance').textContent;
 
-      if (confirm(`Pendakian Selesai!\n\nDurasi: ${durationText}\nJarak: ${distanceText}\nElevasi Max: ${maxElevation}m\n\nSimpan trip?`)) {
-        savedHistory.push({ date: tripStartDateStr, duration: durationText, distance: distanceText, startAlt: startElevation, maxAlt: maxElevation });
+      if (confirm(`Pendakian Selesai!\n\nDurasi: ${durationText}\nJarak: ${distanceText}\nElevasi Max: ${maxElevation}m\n\nSimpan trip ke Riwayat?`)) {
+        // Konversi track points saat ini menjadi format GPX XML untuk fitur Download
+        let gpxTrackXML = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="iGuide Pro">\n  <trk>\n    <name>Trip ${tripStartDateStr}</name>\n    <trkseg>\n`;
+        recordedTrackPoints.forEach(pt => {
+          gpxTrackXML += `      <trkpt lat="${pt[0]}" lon="${pt[1]}"></trkpt>\n`;
+        });
+        gpxTrackXML += `    </trkseg>\n  </trk>\n</gpx>`;
+
+        savedHistory.push({ 
+          date: tripStartDateStr, 
+          duration: durationText, 
+          distance: distanceText, 
+          startAlt: startElevation, 
+          maxAlt: maxElevation,
+          gpxData: gpxTrackXML 
+        });
         localStorage.setItem('saved_trip_history_v17', JSON.stringify(savedHistory));
         renderHistoryList();
-        alert("Trip tersimpan!");
+        alert("Trip berhasil disimpan ke Riwayat & siap di-download!");
       }
 
       tripSeconds = 0; totalDistanceMeters = 0; recordedTrackPoints = [];
@@ -722,9 +756,24 @@
       const container = document.getElementById('history-list-container');
       container.innerHTML = savedHistory.length === 0 ? '<p style="color:#94a3b8; text-align:center;">Belum ada riwayat.</p>' : '';
       savedHistory.forEach((trip, index) => {
-        container.innerHTML += `<div class="list-item"><div><strong>📅 ${trip.date}</strong><br><small style="color:#38bdf8">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small></div><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteHistory(${index})">Hapus</button></div>`;
+        let downloadBtnHTML = trip.gpxData ? `<button class="menu-btn" style="background:#0284c7; color:#white; margin-top:4px;" onclick="downloadTripGPX(${index})">⬇️ Download GPX</button>` : '';
+        container.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;"><div style="width:100%; display:flex; justify-content:space-between;"><strong>📅 ${trip.date}</strong><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteHistory(${index})">Hapus</button></div><small style="color:#38bdf8; margin-top:2px;">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>${downloadBtnHTML}</div>`;
       });
       document.getElementById('history-count').textContent = savedHistory.length;
+    }
+
+    function downloadTripGPX(index) {
+      const trip = savedHistory[index];
+      if (!trip || !trip.gpxData) return;
+      const blob = new Blob([trip.gpxData], { type: 'application/gpx+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Trip_${trip.date.replace(/[/,: ]/g, '_')}.gpx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
     function deleteHistory(index) {
