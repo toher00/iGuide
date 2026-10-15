@@ -43,7 +43,6 @@
     .menu-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; padding: 5px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; }
     .menu-btn:active { background: #334155; }
 
-    /* STATUS BAR 3 KOLOM (Ketinggian, Cuaca, Jarak, SOS) */
     .status-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 5px 8px; background: #0f172a; text-align: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
     .status-card { background: rgba(30, 41, 59, 0.7); padding: 4px 2px; border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.4); }
     .status-card h4 { font-size: 0.45rem; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 1px; }
@@ -69,6 +68,7 @@
       text-align: center;
       box-shadow: 0 4px 20px rgba(239, 68, 68, 0.7);
       animation: pulse-sos 0.8s infinite alternate;
+      cursor: pointer;
     }
     @keyframes pulse-sos {
       0% { background: #7f1d1d; border-color: #ef4444; }
@@ -105,7 +105,6 @@
       margin-top: -3px;
     }
 
-    /* KONTROL BAWAH 5 TOMBOL NAVIGASI */
     .controls { padding: 8px 10px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; border-top: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
     .btn { padding: 8px 4px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: white; background: #2563eb; font-size: 0.62rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .btn:active { transform: scale(0.96); }
@@ -114,14 +113,7 @@
     .btn-amber { background: #d97706; }
     .btn-sky { background: #0284c7; }
     .btn-purple { background: #7c3aed; }
-    .btn-sos { background: #dc2626; color: #fff; font-weight: 700; animation: blink-btn 1s infinite; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    @keyframes blink-btn {
-      0% { opacity: 1; }
-      50% { opacity: 0.5; }
-      100% { opacity: 1; }
-    }
 
     .mode-tag { font-size: 0.5rem; padding: 2px 5px; border-radius: 4px; font-weight: 600; }
     .online { background: #065f46; color: #34d399; }
@@ -160,12 +152,12 @@
     }
 	
 	.leaflet-control-attribution { display: none !important; }
- </style>
+  </style>
 </head>
 <body>
 
   <header>
-    <h1>🧭 iGuide</h1>
+    <h1>🧭 iGuide Pro</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
       <span class="owner-tag">crafted by - @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
@@ -194,7 +186,6 @@
     </div>
   </div>
 
-  <!-- STATUS BAR (Ketinggian, Cuaca, Jarak, TOMBOL SOS) -->
   <div class="status-bar">
     <div class="status-card">
       <h4>Ketinggian</h4>
@@ -208,7 +199,6 @@
       <h4>Jarak</h4>
       <p id="trip-distance">0.00 km</p>
     </div>
-    <!-- TOMBOL SOS DIALIHKAN KE ATAS -->
     <div class="status-card" onclick="triggerSOS()" style="cursor: pointer; background: rgba(220, 38, 38, 0.25); border-color: rgba(239, 68, 68, 0.6);" title="Klik untuk Kirim Sinyal Darurat SOS">
       <h4 style="color: #f87171;">Darurat</h4>
       <p style="color: #ef4444; font-weight: 800;">🚨 SOS</p>
@@ -216,7 +206,8 @@
   </div>
 
   <div class="map-container">
-    <div id="sos-banner">🚨 SINYAL SOS DARURAT AKTIF!</div>
+    <!-- Banner SOS dengan interaksi klik agar browser mengizinkan pemutaran audio alarm jarak jauh -->
+    <div id="sos-banner" onclick="enableAudioAndPlay()">🚨 SOS AKTIF! Klik di sini untuk bunyikan alarm!</div>
     
     <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
@@ -241,7 +232,6 @@
     <div id="map"></div>
   </div>
 
-  <!-- KONTROL BAWAH KHUSUS NAVIGASI & PEREKAMAN -->
   <div class="controls">
     <button class="btn btn-sky" onclick="locateUser()">📍 Posisi Saya</button>
     <button class="btn btn-purple" onclick="openModal('add-pos-modal')">🚩 Tandai</button>
@@ -274,7 +264,7 @@
       <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Status Perangkat</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
         <input type="text" id="team-group-input" placeholder="Nama Grup (Misal: TimHore)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
-        <input type="text" id="team-name-input" placeholder="Nama Anda (Misal: Mem / Juki)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-name-input" placeholder="Nama Anda (Misal: Juki)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
       </div>
       <div style="display: flex; gap: 6px; margin-bottom: 10px;">
         <button class="btn btn-sky" style="flex: 1; padding: 8px;" onclick="toggleLiveTracking(true)">Aktifkan Live</button>
@@ -366,6 +356,7 @@
     let liveSyncInterval = null;
     let activeChartInstances = {};
     let sosAudioInterval = null;
+    let audioUnlocked = false;
 
     async function requestScreenWakeLock() {
       try {
@@ -380,6 +371,9 @@
       const playBeep = () => {
         try {
           const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           
@@ -387,7 +381,7 @@
           osc.frequency.setValueAtTime(800, audioCtx.currentTime);
           osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
           
-          gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
           
           osc.connect(gain);
@@ -412,6 +406,13 @@
         clearInterval(sosAudioInterval);
         sosAudioInterval = null;
       }
+    }
+
+    // Fungsi untuk membuka blokir audio browser saat banner SOS diklik pertama kali oleh pengguna
+    function enableAudioAndPlay() {
+      audioUnlocked = true;
+      playSOSSirena();
+      alert("Alarm darurat diaktifkan pada perangkat ini!");
     }
 
     function stringToColor(str) {
@@ -450,8 +451,10 @@
       renderCheckpoints();
       autoLoadAllGPXToMap();
 
-      if (myTeamGroup && myTeamName) {
+      if (myTeamGroup) {
         document.getElementById('team-group-input').value = myTeamGroup;
+      }
+      if (myTeamName) {
         document.getElementById('team-name-input').value = myTeamName;
       }
 
@@ -498,7 +501,7 @@
 
     function triggerSOS() {
       if (!isLiveActive || !myTeamGroup || !myTeamName) {
-        alert("Harap aktifkan 'Live Tim' terlebih dahulu agar sinyal SOS terkirim ke anggota tim!");
+        alert("Harap aktifkan 'Live Tim' dan isi Nama Anda terlebih dahulu!");
         openModal('team-modal');
         return;
       }
@@ -508,7 +511,10 @@
 
       if (isSosActive) {
         if (confirm("⚠️ PERINGATAN DARURAT!\n\nKirim sinyal SOS Darurat ke seluruh perangkat grup?")) {
+          banner.textContent = "🚨 SINYAL SOS DARURAT AKTIF!";
           banner.style.display = "block";
+          audioUnlocked = true;
+          playSOSSirena();
           updateMyTeamLocation();
           alert("🚨 Sinyal SOS Berhasil Dikirim!");
         } else {
@@ -523,8 +529,8 @@
     }
 
     function sendQuickMessage(text) {
-      if (!isLiveActive || !myTeamGroup) {
-        alert("Aktifkan Live Tim terlebih dahulu untuk mengirim chat!");
+      if (!isLiveActive || !myTeamGroup || !myTeamName) {
+        alert("Aktifkan Live Tim dan isi nama Anda terlebih dahulu!");
         return;
       }
       db.ref(`chats/${myTeamGroup}`).push({
@@ -631,7 +637,7 @@
       if (enable) {
         let rawGroup = document.getElementById('team-group-input').value.trim();
         let rawName = document.getElementById('team-name-input').value.trim();
-        if (!rawGroup || !rawName) { alert("Isi Nama Grup & Nama Anda!"); return; }
+        if (!rawGroup || !rawName) { alert("Isi Nama Grup & Nama Anda terlebih dahulu!"); return; }
 
         myTeamGroup = rawGroup.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
         myTeamName = rawName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
@@ -730,10 +736,11 @@
           
           const banner = document.getElementById('sos-banner');
           if (anySosTriggered) {
-            banner.textContent = "🚨 ANGGOTA TIM MENGIRIMKAN SINYAL SOS DARURAT!";
+            banner.textContent = "🚨 ANGGOTA TIM SOS! KLIK DI SINI UNTUK ALARM!";
             banner.style.display = "block";
-		  if (!sosAudioInterval) {
-            playSOSSirena();
+            if (audioUnlocked) {
+              playSOSSirena();
+            }
           } else if (!isSosActive) {
             banner.style.display = "none";
             stopSOSSirena();
