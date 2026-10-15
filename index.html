@@ -33,9 +33,15 @@
     
     .recorder-panel { background: rgba(15, 23, 42, 0.95); padding: 5px 12px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: #94a3b8; flex-shrink: 0; }
 
-    .menu-panel { background: #0f172a; padding: 5px 10px; display: flex; gap: 6px; overflow-x: auto; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
-    .menu-panel::-webkit-scrollbar { display: none; }
-    .menu-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 500; white-space: nowrap; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    /* MENU SIDEBAR / DROPDOWN RINGKAS */
+    .menu-bar { background: #0f172a; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
+    .menu-dropdown { position: relative; display: inline-block; }
+    .menu-content { display: none; position: absolute; background-color: #1e293b; min-width: 160px; box-shadow: 0px 8px 16px rgba(0,0,0,0.4); z-index: 1000; border-radius: 6px; border: 1px solid #334155; padding: 6px; }
+    .menu-content button { width: 100%; text-align: left; background: transparent; border: none; color: #e2e8f0; padding: 6px 8px; font-size: 0.7rem; border-radius: 4px; cursor: pointer; margin-bottom: 2px; }
+    .menu-content button:hover { background: #334155; }
+    .menu-dropdown:hover .menu-content { display: flex; flex-direction: column; }
+
+    .menu-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; padding: 5px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; }
     .menu-btn:active { background: #334155; }
 
     .status-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 5px 8px; background: #0f172a; text-align: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
@@ -63,16 +69,17 @@
       font-weight: 700;
       text-align: center;
       box-shadow: 0 4px 20px rgba(239, 68, 68, 0.7);
-      animation: pulse-sos 1s infinite alternate;
+      animation: pulse-sos 0.8s infinite alternate;
     }
     @keyframes pulse-sos {
       0% { background: #7f1d1d; border-color: #ef4444; }
       100% { background: #dc2626; border-color: #f87171; }
     }
 
+    /* KOMPAS KEMBALI KE POSISI SEMULA DI POJOK ATAS */
     .compass-widget {
       position: absolute;
-      top: 60px;
+      top: 12px;
       left: 12px;
       width: 70px;
       height: 70px;
@@ -108,12 +115,12 @@
     .btn-amber { background: #d97706; }
     .btn-sky { background: #0284c7; }
     .btn-purple { background: #7c3aed; }
-    .btn-sos { background: #dc2626; color: #fff; font-weight: 700; animation: blink-btn 1.5s infinite; }
+    .btn-sos { background: #dc2626; color: #fff; font-weight: 700; animation: blink-btn 1s infinite; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     @keyframes blink-btn {
       0% { opacity: 1; }
-      50% { opacity: 0.6; }
+      50% { opacity: 0.5; }
       100% { opacity: 1; }
     }
 
@@ -172,13 +179,21 @@
     <div id="recorder-state" style="color: #34d399; font-weight: 600;">Siap</div>
   </div>
 
-  <div class="menu-panel">
-    <input type="file" id="gpx-file-input" accept=".gpx" style="display: none;" onchange="handleGPXUpload(this)">
-    <button class="menu-btn" onclick="document.getElementById('gpx-file-input').click()">📂 Upload GPX</button>
-    <button class="menu-btn" onclick="openModal('gpx-modal')">🗺️ Pustaka GPX (<span id="gpx-count">0</span>)</button>
-    <button class="menu-btn" onclick="openModal('history-modal')">📜 Riwayat (<span id="history-count">0</span>)</button>
-    <button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="openModal('team-modal')">👥 Live Tim (<span id="team-status-label">Off</span>)</button>
-    <button class="menu-btn" style="background:#7c3aed; color:#fff;" onclick="openModal('chat-modal')">💬 Chat Tim</button>
+  <!-- MENU RINGKAS SIDEBAR / DROPDOWN -->
+  <div class="menu-bar">
+    <div class="menu-dropdown">
+      <button class="menu-btn">☰ Menu Navigasi & Sesi ▾</button>
+      <div class="menu-content">
+        <input type="file" id="gpx-file-input" accept=".gpx" style="display: none;" onchange="handleGPXUpload(this)">
+        <button onclick="document.getElementById('gpx-file-input').click()">📂 Upload GPX</button>
+        <button onclick="openModal('gpx-modal')">🗺️ Pustaka GPX (<span id="gpx-count">0</span>)</button>
+        <button onclick="openModal('history-modal')">📜 Riwayat Trip (<span id="history-count">0</span>)</button>
+      </div>
+    </div>
+    <div style="display: flex; gap: 6px;">
+      <button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="openModal('team-modal')">👥 Live Tim (<span id="team-status-label">Off</span>)</button>
+      <button class="menu-btn" style="background:#7c3aed; color:#fff;" onclick="openModal('chat-modal')">💬 Chat</button>
+    </div>
   </div>
 
   <div class="status-bar">
@@ -202,6 +217,8 @@
 
   <div class="map-container">
     <div id="sos-banner">🚨 SINYAL SOS DARURAT AKTIF!</div>
+    
+    <!-- KOMPAS DI POJOK KIRI ATAS -->
     <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
@@ -221,6 +238,7 @@
       </svg>
       <div class="compass-deg-badge" id="compass-deg">0°</div>
     </div>
+    
     <div id="map"></div>
   </div>
 
@@ -349,6 +367,7 @@
     let isSosActive = false;
     let liveSyncInterval = null;
     let activeChartInstances = {};
+    let sosAudioInterval = null;
 
     async function requestScreenWakeLock() {
       try {
@@ -356,6 +375,47 @@
           wakeLock = await navigator.wakeLock.request('screen');
         }
       } catch (err) { console.log("Wake Lock error:", err); }
+    }
+
+    // FUNGSI AUDIO SIRINE DARURAT (BYPASS SILENT MODE MENGGUNAKAN WEB AUDIO API)
+    function playSOSSirena() {
+      if (sosAudioInterval) return; // Sudah bunyi
+      
+      const playBeep = () => {
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+          
+          gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        } catch (e) { console.log("Audio context error:", e); }
+      };
+
+      playBeep();
+      sosAudioInterval = setInterval(() => {
+        playBeep();
+        if ('vibrate' in navigator) {
+          navigator.vibrate([400, 200, 400]);
+        }
+      }, 1000);
+    }
+
+    function stopSOSSirena() {
+      if (sosAudioInterval) {
+        clearInterval(sosAudioInterval);
+        sosAudioInterval = null;
+      }
     }
 
     function initBatteryMonitor() {
@@ -478,6 +538,7 @@
         }
       } else {
         banner.style.display = "none";
+        stopSOSSirena();
         updateMyTeamLocation();
         alert("Sinyal SOS dimatikan.");
       }
@@ -617,6 +678,7 @@
         isLiveActive = false;
         isSosActive = false;
         document.getElementById('sos-banner').style.display = "none";
+        stopSOSSirena();
         localStorage.setItem('is_live_active_v17', 'false');
         if (liveSyncInterval) clearInterval(liveSyncInterval);
         if (myTeamGroup && myTeamName) {
@@ -693,8 +755,10 @@
           if (anySosTriggered) {
             banner.textContent = "🚨 ANGGOTA TIM MENGIRIMKAN SINYAL SOS DARURAT!";
             banner.style.display = "block";
+            playSOSSirena(); // BUNYIKAN SIRINE & GETAR MESKI SILENT
           } else if (!isSosActive) {
             banner.style.display = "none";
+            stopSOSSirena();
           }
 
         } else {
@@ -782,6 +846,13 @@
 
     function startGPSWatch() {
       if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(position => {
+          currentLat = position.coords.latitude;
+          currentLng = position.coords.longitude;
+          currentAlt = Math.round(position.coords.altitude || 1653);
+          updateUIStatus();
+        }, () => {}, { enableHighAccuracy: true, timeout: 5000 });
+
         navigator.geolocation.watchPosition(position => {
           let accuracy = position.coords.accuracy;
           if (accuracy > 50) {
@@ -812,7 +883,7 @@
           document.getElementById('gps-status').textContent = "Default";
           document.getElementById('gps-status').style.color = "#f59e0b";
           updateUIStatus();
-        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+        }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
       } else {
         document.getElementById('gps-status').textContent = "Tdk Ada";
       }
