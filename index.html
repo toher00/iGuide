@@ -119,14 +119,14 @@
   <header>
     <h1>🧭 iGuide Pro</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
-      <span class="owner-tag">by : @xhieua</span>
+      <span class="owner-tag">crafted by @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
     </div>
   </header>
 
   <div class="recorder-panel">
-    <div>⏱️ <strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
-    <div>📅 <span id="trip-datetime">-</span></div>
+    <div><strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
+    <div><span id="trip-datetime">-</span></div>
     <div id="recorder-state" style="color: #34d399; font-weight: 600;">Siap</div>
   </div>
 
@@ -837,10 +837,10 @@
         container.innerHTML += `
           <div class="list-item" onclick="toggleTripDetail(${index})" style="flex-direction:column; align-items:flex-start;">
             <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-              <strong>📅 ${trip.date}</strong>
+              <strong>${trip.date}</strong>
               <button class="menu-btn" style="background:#dc2626; color:#fff;" onclick="event.stopPropagation(); deleteHistory(${index})">Hapus</button>
             </div>
-            <small style="color:#38bdf8; margin-top:2px;">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>
+            <small style="color:#38bdf8; margin-top:2px;">${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>
             
             <div id="trip-detail-${index}" style="display:none; width:100%; margin-top:8px; border-top:1px solid #334155; padding-top:6px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
