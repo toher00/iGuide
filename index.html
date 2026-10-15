@@ -180,7 +180,7 @@
       <div class="menu-content" id="main-menu-content">
         <!-- TOMBOL UNTUK USER BIASA (Peta Personal) -->
         <input type="file" id="gpx-personal-input" accept=".gpx" style="display: none;" onchange="handlePersonalGPXUpload(this)">
-        <button onclick="document.getElementById('gpx-personal-input').click()">📂 Upload GPX</button>
+        <button onclick="document.getElementById('gpx-personal-input').click()">📂 Upload Peta Personal</button>
         
         <!-- TOMBOL KHUSUS SUPER ADMIN (Peta General Pusat) -->
         <input type="file" id="gpx-general-input" accept=".gpx" style="display: none;" onchange="handleGeneralGPXUpload(this)">
@@ -374,8 +374,16 @@
     // Sitem Super Admin tersembunyi dengan ketuk 5x
     let ownerTapCount = 0;
     let ownerTapTimer = null;
-    const SUPER_ADMIN_PIN = "1999"; // Ubah PIN sesuai keinginan Anda
+    const SUPER_ADMIN_PIN = "1999"; // PIN Super Admin Anda
     let isSuperAdmin = localStorage.getItem('is_super_admin_v18') === 'true';
+
+    // IKON KUSTOM RAPI UNTUK WAYPOINT/POS BAWAAN FILE GPX
+    const customWaypointIcon = L.divIcon({
+      className: 'custom-gpx-waypoint',
+      html: '<div style="background:#0f172a; border:2px solid #38bdf8; color:#38bdf8; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold; box-shadow:0 2px 6px rgba(0,0,0,0.6);">📍</div>',
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
+    });
 
     function handleOwnerTap() {
       ownerTapCount++;
@@ -389,6 +397,7 @@
             localStorage.setItem('is_super_admin_v18', 'false');
             document.getElementById('owner-badge').classList.remove('admin-active');
             document.getElementById('admin-upload-btn').style.display = 'none';
+            renderGPXLibrary();
             alert("Mode Super Admin dimatikan.");
           }
         } else {
@@ -398,6 +407,7 @@
             localStorage.setItem('is_super_admin_v18', 'true');
             document.getElementById('owner-badge').classList.add('admin-active');
             document.getElementById('admin-upload-btn').style.display = 'block';
+            renderGPXLibrary();
             alert("✨ Berhasil Masuk sebagai Super Admin! Menu Upload Peta General (Pusat) diaktifkan.");
           } else if (pin !== null) {
             alert("❌ PIN Salah!");
@@ -651,16 +661,22 @@
       document.getElementById('gpx-count').textContent = totalCount;
     }
 
+    // FUNGSI RENDER GPX KE PETA DENGAN IKON WAYPOINT KUSTOM
     function renderAllGPXToMap() {
       activeGPXLayerGroup.clearLayers();
 
       // Load General GPX
       Object.keys(cachedGeneralGPX).forEach(key => {
         try {
-          const gpx = cachedGeneralGPX[key];
-          const gpxLayer = new L.GPX(gpx.content, { 
+          const gpx = cachedGeneralGPX[key].content;
+          const gpxLayer = new L.GPX(gpx, { 
             async: true, 
-            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
+            marker_options: { 
+              startIconUrl: null, 
+              endIconUrl: null, 
+              shadowUrl: null,
+              wptIcon: customWaypointIcon // Ikon penanda pos/waypoint kustom
+            },
             polyline_options: { color: '#38bdf8', weight: 4, opacity: 0.85 } 
           });
           gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
@@ -673,7 +689,12 @@
         try {
           const gpxLayer = new L.GPX(gpx.content, { 
             async: true, 
-            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
+            marker_options: { 
+              startIconUrl: null, 
+              endIconUrl: null, 
+              shadowUrl: null,
+              wptIcon: customWaypointIcon // Ikon penanda pos/waypoint kustom
+            },
             polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } 
           });
           activeGPXLayerGroup.addLayer(gpxLayer);
