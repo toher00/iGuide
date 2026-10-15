@@ -211,8 +211,8 @@
     <div class="modal-content">
       <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Track Line</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="team-group-input" placeholder="Nama Grup (Misal: GunungArjuno)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
-        <input type="text" id="team-name-input" placeholder="Nama Anda (Misal: hp_mimin atau ipad_juki)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-group-input" placeholder="Nama Grup (Misal: TimHore)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
+        <input type="text" id="team-name-input" placeholder="Nama Anda (Misal: Mem / Juki)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
       </div>
       <div style="display: flex; gap: 6px; margin-bottom: 10px;">
         <button class="btn btn-sky" style="flex: 1; padding: 8px;" onclick="toggleLiveTracking(true)">Aktifkan Live</button>
@@ -249,7 +249,8 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
   <script>
-    const firebaseConfig = { databaseURL: "https://summitguide-pro-default-rtdb.firebaseio.com/" };
+    // KODE BARU YANG BENAR
+	const firebaseConfig = { databaseURL: "https://summitguide-pro-default-rtdb-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const db = firebase.database();
 
@@ -435,8 +436,8 @@
         let rawName = document.getElementById('team-name-input').value.trim();
         if (!rawGroup || !rawName) { alert("Isi Nama Grup & Nama Anda!"); return; }
 
-        myTeamGroup = rawGroup.replace(/[^a-zA-Z0-9]/g, "_");
-        myTeamName = rawName.replace(/[^a-zA-Z0-9]/g, "_");
+        myTeamGroup = rawGroup.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+        myTeamName = rawName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 
         localStorage.setItem('team_group', myTeamGroup);
         localStorage.setItem('team_name', myTeamName);
@@ -495,7 +496,6 @@
             const member = members[key];
             memberNamesList.push(member.name);
 
-            // Tampilkan semua member di peta (termasuk diri sendiri atau device lain)
             const memberColor = stringToColor(member.name);
 
             if (member.path && Array.isArray(member.path) && member.path.length > 1) {
