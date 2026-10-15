@@ -68,7 +68,6 @@
       text-align: center;
       box-shadow: 0 4px 20px rgba(239, 68, 68, 0.7);
       animation: pulse-sos 0.8s infinite alternate;
-      cursor: pointer;
     }
     @keyframes pulse-sos {
       0% { background: #7f1d1d; border-color: #ef4444; }
@@ -154,10 +153,10 @@
 	.leaflet-control-attribution { display: none !important; }
   </style>
 </head>
-<body>
+<body onclick="unlockAudioContext()">
 
   <header>
-    <h1>🧭 iGuide Pro</h1>
+    <h1>🧭 iGuide</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
       <span class="owner-tag">crafted by - @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
@@ -206,8 +205,7 @@
   </div>
 
   <div class="map-container">
-    <!-- Banner SOS dengan interaksi klik agar browser mengizinkan pemutaran audio alarm jarak jauh -->
-    <div id="sos-banner" onclick="enableAudioAndPlay()">🚨 SOS AKTIF! Klik di sini untuk bunyikan alarm!</div>
+    <div id="sos-banner">🚨 SINYAL SOS DARURAT AKTIF!</div>
     
     <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
@@ -355,8 +353,8 @@
     let isSosActive = false;
     let liveSyncInterval = null;
     let activeChartInstances = {};
-    let sosAudioInterval = null;
-    let audioUnlocked = false;
+    let audioCtx = null;
+    let sosActiveTimer = null;
 
     async function requestScreenWakeLock() {
       try {
@@ -366,53 +364,64 @@
       } catch (err) { console.log("Wake Lock error:", err); }
     }
 
-    function playSOSSirena() {
-      if (sosAudioInterval) return;
-      const playBeep = () => {
-        try {
-          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-          }
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
-          
-          gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-          
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          
-          osc.start();
-          osc.stop(audioCtx.currentTime + 0.3);
-        } catch (e) { console.log("Audio context error:", e); }
-      };
-
-      playBeep();
-      sosAudioInterval = setInterval(() => {
-        playBeep();
-        if ('vibrate' in navigator) {
-          navigator.vibrate([400, 200, 400]);
-        }
-      }, 1000);
-    }
-
-    function stopSOSSirena() {
-      if (sosAudioInterval) {
-        clearInterval(sosAudioInterval);
-        sosAudioInterval = null;
+    // Fungsi membuka kunci AudioContext otomatis saat layar disentuh pertama kali
+    function unlockAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
       }
     }
 
-    // Fungsi untuk membuka blokir audio browser saat banner SOS diklik pertama kali oleh pengguna
-    function enableAudioAndPlay() {
-      audioUnlocked = true;
-      playSOSSirena();
-      alert("Alarm darurat diaktifkan pada perangkat ini!");
+    // Sirine Alarm Panjang & Kontinyu (Model Siren Naik-Turun Frekuensi)
+    function playSOSSirena() {
+      if (sosActiveTimer) return; // Jika sudah bunyi, jangan ditimpa intervalnya
+
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const playSirenCycle = () => {
+        try {
+          if (!audioCtx) return;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc.type = 'sawtooth';
+          // Efek suara sirine naik turun panjang (500Hz ke 1500Hz lalu turun lagi)
+          let now = audioCtx.currentTime;
+          osc.frequency.setValueAtTime(500, now);
+          osc.frequency.linearRampToValueAtTime(1500, now + 0.9);
+          osc.frequency.linearRampToValueAtTime(500, now + 1.8);
+
+          gain.gain.setValueAtTime(0.7, now);
+          gain.gain.linearRampToValueAtTime(0.7, now + 1.8);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc.start(now);
+          osc.stop(now + 1.8);
+
+          if ('vibrate' in navigator) {
+            navigator.vibrate([800, 300, 800]);
+          }
+        } catch (e) { console.log("Siren error:", e); }
+      };
+
+      playSirenCycle();
+      sosActiveTimer = setInterval(playSirenCycle, 1900); // Ulangi siklus sirine setiap 1.9 detik secara otomatis
+    }
+
+    function stopSOSSirena() {
+      if (sosActiveTimer) {
+        clearInterval(sosActiveTimer);
+        sosActiveTimer = null;
+      }
     }
 
     function stringToColor(str) {
@@ -513,7 +522,6 @@
         if (confirm("⚠️ PERINGATAN DARURAT!\n\nKirim sinyal SOS Darurat ke seluruh perangkat grup?")) {
           banner.textContent = "🚨 SINYAL SOS DARURAT AKTIF!";
           banner.style.display = "block";
-          audioUnlocked = true;
           playSOSSirena();
           updateMyTeamLocation();
           alert("🚨 Sinyal SOS Berhasil Dikirim!");
@@ -736,11 +744,9 @@
           
           const banner = document.getElementById('sos-banner');
           if (anySosTriggered) {
-            banner.textContent = "🚨 ANGGOTA TIM SOS! KLIK DI SINI UNTUK ALARM!";
+            banner.textContent = "🚨 ALARM DARURAT! ANGGOTA TIM MENGIRIM SOS!";
             banner.style.display = "block";
-            if (audioUnlocked) {
-              playSOSSirena();
-            }
+            playSOSSirena(); // Otomatis berbunyi sirine panjang saat ada yang SOS
           } else if (!isSosActive) {
             banner.style.display = "none";
             stopSOSSirena();
