@@ -170,7 +170,6 @@
     </div>
   </header>
 
-  <!-- PANEL TANGGAL & WAKTU REALTIME DIKEMBALIKAN -->
   <div class="recorder-panel">
     <div>⏱️ <strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
     <div>📅 <span id="trip-datetime">-</span></div>
@@ -206,9 +205,9 @@
       <h4>Jarak</h4>
       <p id="trip-distance">0.00 km</p>
     </div>
-    <div class="status-card">
-      <h4>Baterai HP</h4>
-      <p id="battery-status">--%</p>
+    <div class="status-card" onclick="promptManualBattery()" style="cursor: pointer;" title="Klik untuk ubah manual persentase baterai">
+      <h4>Baterai HP (✏️)</h4>
+      <p id="battery-status">85%</p>
     </div>
   </div>
 
@@ -335,7 +334,7 @@
     let map;
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
-    let batteryLevel = 100;
+    let batteryLevel = parseInt(localStorage.getItem('manual_battery_v17') || '85');
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -412,22 +411,39 @@
       }
     }
 
+    // PENGURANGAN BATERAI OTOMATIS BERDASARKAN WAKTU PENDAKIAN
     function initBatteryMonitor() {
+      document.getElementById('battery-status').textContent = `${batteryLevel}%`;
+
+      // Jika browser mendukung pembacaan baterai nyata, gunakan. Jika tidak, kurangi otomatis setiap 15 menit saat merekam trip.
       if ('getBattery' in navigator) {
         navigator.getBattery().then(bat => {
-          updateBatteryVal(bat.level);
-          bat.addEventListener('levelchange', () => updateBatteryVal(bat.level));
-        }).catch(() => {
-          document.getElementById('battery-status').textContent = "100%";
-        });
-      } else {
-        document.getElementById('battery-status').textContent = "100%";
+          if (bat.level && bat.level > 0 && bat.level <= 1) {
+            batteryLevel = Math.round(bat.level * 100);
+            document.getElementById('battery-status').textContent = `${batteryLevel}%`;
+          }
+          bat.addEventListener('levelchange', () => {
+            batteryLevel = Math.round(bat.level * 100);
+            document.getElementById('battery-status').textContent = `${batteryLevel}%`;
+          });
+        }).catch(() => {});
       }
     }
 
-    function updateBatteryVal(level) {
-      batteryLevel = Math.round(level * 100);
-      document.getElementById('battery-status').textContent = `${batteryLevel}%`;
+    function promptManualBattery() {
+      const input = prompt("Masukkan sisa baterai HP Anda saat ini (dalam %):", batteryLevel);
+      if (input !== null && !isNaN(input)) {
+        let val = parseInt(input);
+        if (val >= 0 && val <= 100) {
+          batteryLevel = val;
+          localStorage.setItem('manual_battery_v17', batteryLevel);
+          document.getElementById('battery-status').textContent = `${batteryLevel}%`;
+          if (isLiveActive) updateMyTeamLocation();
+          alert(`Baterai diperbarui ke ${batteryLevel}%`);
+        } else {
+          alert("Masukkan angka antara 0 sampai 100!");
+        }
+      }
     }
 
     function stringToColor(str) {
@@ -495,6 +511,7 @@
         }
       }
 
+      // PERBAIKAN KLIK DI LAUT / DATARAN RENDAH (0 MDPL)
       map.on('dblclick', function(e) {
         calculateElevationForCoord(e.latlng.lat, e.latlng.lng, function(checkedAlt) {
           L.popup()
@@ -715,7 +732,7 @@
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
-            memberNamesList.push(`${member.name} (${member.battery || 100}%)${member.sos ? ' [🚨 SOS]' : ''}`);
+            memberNamesList.push(`${member.name} (${member.battery || 85}%)${member.sos ? ' [🚨 SOS]' : ''}`);
 
             if (member.sos && member.name !== myTeamName) {
               anySosTriggered = true;
@@ -734,12 +751,12 @@
               fillColor: memberColor, 
               fillOpacity: 1, 
               weight: 3
-            }).bindPopup(`<b>👥 ${member.name}</b> ${member.sos ? '<br><span style="color:#ef4444; font-weight:bold;">🚨 STATUS SOS!</span>' : ''}<br>Baterai: ${member.battery || 100}% | Alt: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
+            }).bindPopup(`<b>👥 ${member.name}</b> ${member.sos ? '<br><span style="color:#ef4444; font-weight:bold;">🚨 STATUS SOS!</span>' : ''}<br>Baterai: ${member.battery || 85}% | Alt: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
             
             if (member.sos) {
               memberMarker.bindTooltip(`🚨 SOS: ${member.name}`, { permanent: true, direction: 'top', className: 'sos-label' });
             } else {
-              memberMarker.bindTooltip(`${member.name} (${member.battery || 100}%)`, { permanent: true, direction: 'top', className: 'team-label' });
+              memberMarker.bindTooltip(`${member.name} (${member.battery || 85}%)`, { permanent: true, direction: 'top', className: 'team-label' });
             }
             teamLayerGroup.addLayer(memberMarker);
           });
@@ -762,37 +779,28 @@
       });
     }
 
+    // PERBAIKAN LOGIKA ELEVASI AGAR TIDAK SALAH KE 1653 MDPL JIKA DI LAUT/DATARAN RENDAH
     function calculateElevationForCoord(lat, lng, callback) {
       if (!navigator.onLine) {
-        fallbackEstimation(lat, lng, callback);
+        callback(0);
         return;
       }
-      const peakLat = -7.5991, peakLng = 112.6223;
-      const distKm = Math.hypot(lat - peakLat, lng - peakLng) * 111;
-      if (distKm < 0.15) { callback(1653); return; }
 
       fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`)
         .then(res => res.json())
         .then(data => {
           if (data && data.results && data.results[0] && data.results[0].elevation !== undefined) {
             let alt = Math.round(data.results[0].elevation);
-            if (alt <= 2) {
-              callback(1653);
+            // Jika ketinggian bernilai negatif atau di bawah 3 mdpl, anggap permukaan laut (0 mdpl)
+            if (alt < 3) {
+              callback(0);
             } else {
-              if (distKm < 0.5 && alt < 1600) alt += 40;
               callback(alt);
             }
           } else { 
-            fallbackEstimation(lat, lng, callback); 
+            callback(0); 
           }
-        }).catch(() => fallbackEstimation(lat, lng, callback));
-    }
-
-    function fallbackEstimation(lat, lng, callback) {
-      const peakLat = -7.5991, peakLng = 112.6223;
-      const distKm = Math.hypot(lat - peakLat, lng - peakLng) * 111;
-      let estimated = Math.round(1653 - (distKm * 320));
-      callback(Math.max(100, estimated));
+        }).catch(() => callback(0));
     }
 
     function locateUser() {
@@ -839,8 +847,16 @@
         navigator.geolocation.getCurrentPosition(position => {
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
-          currentAlt = Math.round(position.coords.altitude || 1653);
-          updateUIStatus();
+          let rawAlt = position.coords.altitude;
+          if (rawAlt === null || rawAlt === undefined || rawAlt <= 2) {
+            calculateElevationForCoord(currentLat, currentLng, (estAlt) => {
+              currentAlt = estAlt;
+              updateUIStatus();
+            });
+          } else {
+            currentAlt = Math.round(rawAlt);
+            updateUIStatus();
+          }
         }, () => {
           updateUIStatus();
         }, { enableHighAccuracy: true, timeout: 5000 });
@@ -850,7 +866,7 @@
           currentLng = position.coords.longitude;
 
           let rawAlt = position.coords.altitude;
-          if (rawAlt === null || rawAlt === undefined || rawAlt <= 5) {
+          if (rawAlt === null || rawAlt === undefined || rawAlt <= 2) {
             calculateElevationForCoord(currentLat, currentLng, (estAlt) => {
               currentAlt = estAlt;
               updateUIStatus();
@@ -882,6 +898,13 @@
       if (isRecording) {
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
+
+        // Otomatis kurangi baterai 1% setiap 20 menit perekaman aktif
+        if (tripSeconds > 0 && tripSeconds % 1200 === 0 && batteryLevel > 1) {
+          batteryLevel--;
+          localStorage.setItem('manual_battery_v17', batteryLevel);
+          document.getElementById('battery-status').textContent = `${batteryLevel}%`;
+        }
 
         if (!lastPoint || map.distance(lastPoint, newPt) >= 2) {
           recordedTrackPoints.push(newPt);
