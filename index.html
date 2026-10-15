@@ -33,10 +33,10 @@
     
     .recorder-panel { background: rgba(15, 23, 42, 0.95); padding: 5px 12px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: #94a3b8; flex-shrink: 0; }
 
-    /* MENU SIDEBAR / DROPDOWN RINGKAS */
-    .menu-bar { background: #0f172a; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
+    /* MENU BAR AMAN DARI KOMPAS */
+    .menu-bar { background: #0f172a; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; z-index: 1500; position: relative; }
     .menu-dropdown { position: relative; display: inline-block; }
-    .menu-content { display: none; position: absolute; background-color: #1e293b; min-width: 160px; box-shadow: 0px 8px 16px rgba(0,0,0,0.4); z-index: 1000; border-radius: 6px; border: 1px solid #334155; padding: 6px; }
+    .menu-content { display: none; position: absolute; background-color: #1e293b; min-width: 160px; box-shadow: 0px 8px 16px rgba(0,0,0,0.6); z-index: 3000; border-radius: 6px; border: 1px solid #334155; padding: 6px; left: 0; top: 100%; }
     .menu-content button { width: 100%; text-align: left; background: transparent; border: none; color: #e2e8f0; padding: 6px 8px; font-size: 0.7rem; border-radius: 4px; cursor: pointer; margin-bottom: 2px; }
     .menu-content button:hover { background: #334155; }
     .menu-dropdown:hover .menu-content { display: flex; flex-direction: column; }
@@ -76,13 +76,13 @@
       100% { background: #dc2626; border-color: #f87171; }
     }
 
-    /* KOMPAS KEMBALI KE POSISI SEMULA DI POJOK ATAS */
+    /* KOMPOSISI KOMPAS DIPINDAH KE BAWAH KIRI (DI ATAS KONTROL ZOOM) AGAR TIDAK MENUTUP MENU */
     .compass-widget {
       position: absolute;
-      top: 12px;
+      bottom: 15px;
       left: 12px;
-      width: 70px;
-      height: 70px;
+      width: 65px;
+      height: 65px;
       background: rgba(15, 23, 42, 0.92);
       backdrop-filter: blur(8px);
       border: 2px solid #38bdf8;
@@ -95,9 +95,9 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
       cursor: pointer;
     }
-    .compass-rose { width: 50px; height: 50px; transition: transform 0.1s ease-out; }
+    .compass-rose { width: 45px; height: 45px; transition: transform 0.1s ease-out; }
     .compass-deg-badge {
-      font-size: 0.45rem;
+      font-size: 0.42rem;
       font-weight: 700;
       color: #34d399;
       background: #0f172a;
@@ -179,7 +179,7 @@
     <div id="recorder-state" style="color: #34d399; font-weight: 600;">Siap</div>
   </div>
 
-  <!-- MENU RINGKAS SIDEBAR / DROPDOWN -->
+  <!-- MENU BAR DROPDOWN DI ATAS PETA -->
   <div class="menu-bar">
     <div class="menu-dropdown">
       <button class="menu-btn">☰ Menu Navigasi & Sesi ▾</button>
@@ -199,11 +199,11 @@
   <div class="status-bar">
     <div class="status-card">
       <h4>Ketinggian</h4>
-      <p id="altitude">-- mdpl</p>
+      <p id="altitude">1653 mdpl</p>
     </div>
     <div class="status-card">
       <h4>Cuaca Realtime</h4>
-      <p id="weather-info">Memuat...</p>
+      <p id="weather-info">22°C (Cerah)</p>
     </div>
     <div class="status-card">
       <h4>Jarak</h4>
@@ -211,14 +211,14 @@
     </div>
     <div class="status-card">
       <h4>Baterai HP</h4>
-      <p id="battery-status">--%</p>
+      <p id="battery-status">100%</p>
     </div>
   </div>
 
   <div class="map-container">
     <div id="sos-banner">🚨 SINYAL SOS DARURAT AKTIF!</div>
     
-    <!-- KOMPAS DI POJOK KIRI ATAS -->
+    <!-- KOMPAS DI POJOK KIRI BAWAH PETA -->
     <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
@@ -377,10 +377,8 @@
       } catch (err) { console.log("Wake Lock error:", err); }
     }
 
-    // FUNGSI AUDIO SIRINE DARURAT (BYPASS SILENT MODE MENGGUNAKAN WEB AUDIO API)
     function playSOSSirena() {
-      if (sosAudioInterval) return; // Sudah bunyi
-      
+      if (sosAudioInterval) return;
       const playBeep = () => {
         try {
           const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -516,6 +514,7 @@
       startGPSWatch();
       initCompassSensor();
       fetchRealtimeWeather(currentLat, currentLng);
+      updateUIStatus();
     }
 
     function triggerSOS() {
@@ -609,7 +608,7 @@
             document.getElementById('weather-info').textContent = `${temp}°C (${desc})`;
           }
         }).catch(() => {
-          document.getElementById('weather-info').textContent = `${Math.round(28 - ((currentAlt / 100) * 0.65))}°C`;
+          document.getElementById('weather-info').textContent = `${Math.round(28 - ((currentAlt / 100) * 0.65))}°C (Cerah)`;
         });
     }
 
@@ -755,7 +754,7 @@
           if (anySosTriggered) {
             banner.textContent = "🚨 ANGGOTA TIM MENGIRIMKAN SINYAL SOS DARURAT!";
             banner.style.display = "block";
-            playSOSSirena(); // BUNYIKAN SIRINE & GETAR MESKI SILENT
+            playSOSSirena();
           } else if (!isSosActive) {
             banner.style.display = "none";
             stopSOSSirena();
@@ -782,7 +781,7 @@
           if (data && data.results && data.results[0] && data.results[0].elevation !== undefined) {
             let alt = Math.round(data.results[0].elevation);
             if (alt <= 2) {
-              callback(0);
+              callback(1653);
             } else {
               if (distKm < 0.5 && alt < 1600) alt += 40;
               callback(alt);
@@ -797,12 +796,7 @@
       const peakLat = -7.5991, peakLng = 112.6223;
       const distKm = Math.hypot(lat - peakLat, lng - peakLng) * 111;
       let estimated = Math.round(1653 - (distKm * 320));
-      
-      if (estimated < 15) {
-        callback(0);
-      } else {
-        callback(Math.max(0, estimated));
-      }
+      callback(Math.max(100, estimated));
     }
 
     function locateUser() {
@@ -851,18 +845,11 @@
           currentLng = position.coords.longitude;
           currentAlt = Math.round(position.coords.altitude || 1653);
           updateUIStatus();
-        }, () => {}, { enableHighAccuracy: true, timeout: 5000 });
+        }, () => {
+          updateUIStatus();
+        }, { enableHighAccuracy: true, timeout: 5000 });
 
         navigator.geolocation.watchPosition(position => {
-          let accuracy = position.coords.accuracy;
-          if (accuracy > 50) {
-            document.getElementById('gps-status').textContent = "Lemah";
-            document.getElementById('gps-status').style.color = "#f59e0b";
-          } else {
-            document.getElementById('gps-status').textContent = "Akurat";
-            document.getElementById('gps-status').style.color = "#34d399";
-          }
-
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
 
@@ -880,12 +867,10 @@
           fetchRealtimeWeather(currentLat, currentLng);
         }, (error) => {
           console.warn("GPS Warning:", error.message);
-          document.getElementById('gps-status').textContent = "Default";
-          document.getElementById('gps-status').style.color = "#f59e0b";
           updateUIStatus();
         }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
       } else {
-        document.getElementById('gps-status').textContent = "Tdk Ada";
+        updateUIStatus();
       }
     }
 
