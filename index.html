@@ -156,7 +156,7 @@
 <body onclick="unlockAudioContext()">
 
   <header>
-    <h1>🧭 iGuide</h1>
+    <h1>🧭 iGuide - Never Lose Your Way.</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
       <span class="owner-tag">crafted by - @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
@@ -364,7 +364,6 @@
       } catch (err) { console.log("Wake Lock error:", err); }
     }
 
-    // Fungsi membuka kunci AudioContext otomatis saat layar disentuh pertama kali
     function unlockAudioContext() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -374,9 +373,8 @@
       }
     }
 
-    // Sirine Alarm Panjang & Kontinyu (Model Siren Naik-Turun Frekuensi)
     function playSOSSirena() {
-      if (sosActiveTimer) return; // Jika sudah bunyi, jangan ditimpa intervalnya
+      if (sosActiveTimer) return;
 
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -392,7 +390,6 @@
           const gain = audioCtx.createGain();
 
           osc.type = 'sawtooth';
-          // Efek suara sirine naik turun panjang (500Hz ke 1500Hz lalu turun lagi)
           let now = audioCtx.currentTime;
           osc.frequency.setValueAtTime(500, now);
           osc.frequency.linearRampToValueAtTime(1500, now + 0.9);
@@ -414,7 +411,7 @@
       };
 
       playSirenCycle();
-      sosActiveTimer = setInterval(playSirenCycle, 1900); // Ulangi siklus sirine setiap 1.9 detik secara otomatis
+      sosActiveTimer = setInterval(playSirenCycle, 1900);
     }
 
     function stopSOSSirena() {
@@ -492,9 +489,10 @@
 
       map.on('dblclick', function(e) {
         calculateElevationForCoord(e.latlng.lat, e.latlng.lng, function(checkedAlt) {
+          let displayAlt = (checkedAlt !== null && checkedAlt !== undefined) ? checkedAlt : currentAlt;
           L.popup()
             .setLatLng(e.latlng)
-            .setContent(`<div style="font-size:0.75rem;"><b>📍 Cek Elevasi</b><br>Lat: ${e.latlng.lat.toFixed(5)}<br>Lng: ${e.latlng.lng.toFixed(5)}<br>⛰️ <b>${checkedAlt} mdpl</b></div>`)
+            .setContent(`<div style="font-size:0.75rem;"><b>📍 Cek Elevasi</b><br>Lat: ${e.latlng.lat.toFixed(5)}<br>Lng: ${e.latlng.lng.toFixed(5)}<br>⛰️ <b>${displayAlt} mdpl</b></div>`)
             .openOn(map);
         });
       });
@@ -746,7 +744,7 @@
           if (anySosTriggered) {
             banner.textContent = "🚨 ALARM DARURAT! ANGGOTA TIM MENGIRIM SOS!";
             banner.style.display = "block";
-            playSOSSirena(); // Otomatis berbunyi sirine panjang saat ada yang SOS
+            playSOSSirena();
           } else if (!isSosActive) {
             banner.style.display = "none";
             stopSOSSirena();
@@ -758,9 +756,10 @@
       });
     }
 
+    // Perbaikan: Jika API gagal/error, kembalikan nilai null agar tidak menimpa elevasi asli dengan 0
     function calculateElevationForCoord(lat, lng, callback) {
       if (!navigator.onLine) {
-        callback(0);
+        callback(null);
         return;
       }
 
@@ -769,15 +768,11 @@
         .then(data => {
           if (data && data.results && data.results[0] && data.results[0].elevation !== undefined) {
             let alt = Math.round(data.results[0].elevation);
-            if (alt < 3) {
-              callback(0);
-            } else {
-              callback(alt);
-            }
+            callback(alt);
           } else { 
-            callback(0); 
+            callback(null); 
           }
-        }).catch(() => callback(0));
+        }).catch(() => callback(null));
     }
 
     function locateUser() {
@@ -827,7 +822,9 @@
           let rawAlt = position.coords.altitude;
           if (rawAlt === null || rawAlt === undefined || rawAlt <= 2) {
             calculateElevationForCoord(currentLat, currentLng, (estAlt) => {
-              currentAlt = estAlt;
+              if (estAlt !== null && estAlt !== undefined) {
+                currentAlt = estAlt;
+              }
               updateUIStatus();
             });
           } else {
@@ -845,7 +842,9 @@
           let rawAlt = position.coords.altitude;
           if (rawAlt === null || rawAlt === undefined || rawAlt <= 2) {
             calculateElevationForCoord(currentLat, currentLng, (estAlt) => {
-              currentAlt = estAlt;
+              if (estAlt !== null && estAlt !== undefined) {
+                currentAlt = estAlt;
+              }
               updateUIStatus();
             });
           } else {
