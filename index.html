@@ -374,15 +374,31 @@
     // Sitem Super Admin tersembunyi dengan ketuk 5x
     let ownerTapCount = 0;
     let ownerTapTimer = null;
-    const SUPER_ADMIN_PIN = "1999"; // PIN Super Admin Anda
+    const SUPER_ADMIN_PIN = "1999";
     let isSuperAdmin = localStorage.getItem('is_super_admin_v18') === 'true';
 
-    // IKON KUSTOM RAPI UNTUK WAYPOINT/POS BAWAAN FILE GPX
+    // IKON VEKTOR SVG LINTAS PERANGKAT (TAMPIL SERAGAM DAN RAPI DI LAPTOP & HP)
     const customWaypointIcon = L.divIcon({
       className: 'custom-gpx-waypoint',
-      html: '<div style="background:#0f172a; border:2px solid #38bdf8; color:#38bdf8; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold; box-shadow:0 2px 6px rgba(0,0,0,0.6);">📍</div>',
-      iconSize: [22, 22],
-      iconAnchor: [11, 11]
+      html: `
+        <div style="
+          width: 20px; 
+          height: 20px; 
+          background: #0f172a; 
+          border: 2px solid #38bdf8; 
+          border-radius: 50%; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+        ">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="#38bdf8" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
     });
 
     function handleOwnerTap() {
@@ -661,7 +677,7 @@
       document.getElementById('gpx-count').textContent = totalCount;
     }
 
-    // FUNGSI RENDER GPX KE PETA DENGAN IKON WAYPOINT KUSTOM
+    // RENDER SEMUA GPX KE PETA MENGGUNAKAN IKON SVG LINTAS PERANGKAT
     function renderAllGPXToMap() {
       activeGPXLayerGroup.clearLayers();
 
@@ -675,7 +691,7 @@
               startIconUrl: null, 
               endIconUrl: null, 
               shadowUrl: null,
-              wptIcon: customWaypointIcon // Ikon penanda pos/waypoint kustom
+              wptIcon: customWaypointIcon // Menggunakan Ikon SVG Vektor Murni
             },
             polyline_options: { color: '#38bdf8', weight: 4, opacity: 0.85 } 
           });
@@ -693,7 +709,7 @@
               startIconUrl: null, 
               endIconUrl: null, 
               shadowUrl: null,
-              wptIcon: customWaypointIcon // Ikon penanda pos/waypoint kustom
+              wptIcon: customWaypointIcon // Menggunakan Ikon SVG Vektor Murni
             },
             polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } 
           });
