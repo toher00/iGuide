@@ -43,6 +43,7 @@
     .menu-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; padding: 5px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; }
     .menu-btn:active { background: #334155; }
 
+    /* STATUS BAR 3 KOLOM (Ketinggian, Cuaca, Jarak, SOS) */
     .status-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 5px 8px; background: #0f172a; text-align: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
     .status-card { background: rgba(30, 41, 59, 0.7); padding: 4px 2px; border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.4); }
     .status-card h4 { font-size: 0.45rem; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 1px; }
@@ -104,6 +105,7 @@
       margin-top: -3px;
     }
 
+    /* KONTROL BAWAH 5 TOMBOL NAVIGASI */
     .controls { padding: 8px 10px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; border-top: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
     .btn { padding: 8px 4px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: white; background: #2563eb; font-size: 0.62rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .btn:active { transform: scale(0.96); }
@@ -112,7 +114,14 @@
     .btn-amber { background: #d97706; }
     .btn-sky { background: #0284c7; }
     .btn-purple { background: #7c3aed; }
+    .btn-sos { background: #dc2626; color: #fff; font-weight: 700; animation: blink-btn 1s infinite; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    @keyframes blink-btn {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
 
     .mode-tag { font-size: 0.5rem; padding: 2px 5px; border-radius: 4px; font-weight: 600; }
     .online { background: #065f46; color: #34d399; }
@@ -151,31 +160,21 @@
     }
 	
 	.leaflet-control-attribution { display: none !important; }
-  </style>
+ </style>
 </head>
 <body>
 
-  <!-- MODAL LOGIN / KONTROL AKSES PENGGUNA -->
-  <div id="login-modal" class="modal" style="display: flex; z-index: 4000;">
-    <div class="modal-content" style="max-width: 360px; text-align: center;">
-      <h3 style="margin-bottom: 8px; font-size: 1rem; color: #38bdf8;">🧭 iGuide Pro Access</h3>
-      <p style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 14px;">Masukkan Nama / ID Resmi Anda untuk menggunakan aplikasi ini.</p>
-      <input type="text" id="auth-username-input" placeholder="Contoh: Juki_Explorer" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.8rem; margin-bottom: 10px; text-align: center;">
-      <button class="btn btn-sky" style="width: 100%; padding: 10px; font-size: 0.75rem;" onclick="registerAndLoginUser()">Masuk ke Aplikasi</button>
-    </div>
-  </div>
-
   <header>
-    <h1>🧭 iGuide Pro</h1>
+    <h1>🧭 iGuide</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
-      <span class="owner-tag">by : @xhieua</span>
+      <span class="owner-tag">crafted by - @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
     </div>
   </header>
 
   <div class="recorder-panel">
-    <div>⏱️ <strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
-    <div>📅 <span id="trip-datetime">-</span></div>
+    <div><strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
+    <div><span id="trip-datetime">-</span></div>
     <div id="recorder-state" style="color: #34d399; font-weight: 600;">Siap</div>
   </div>
 
@@ -195,6 +194,7 @@
     </div>
   </div>
 
+  <!-- STATUS BAR (Ketinggian, Cuaca, Jarak, TOMBOL SOS) -->
   <div class="status-bar">
     <div class="status-card">
       <h4>Ketinggian</h4>
@@ -208,6 +208,7 @@
       <h4>Jarak</h4>
       <p id="trip-distance">0.00 km</p>
     </div>
+    <!-- TOMBOL SOS DIALIHKAN KE ATAS -->
     <div class="status-card" onclick="triggerSOS()" style="cursor: pointer; background: rgba(220, 38, 38, 0.25); border-color: rgba(239, 68, 68, 0.6);" title="Klik untuk Kirim Sinyal Darurat SOS">
       <h4 style="color: #f87171;">Darurat</h4>
       <p style="color: #ef4444; font-weight: 800;">🚨 SOS</p>
@@ -240,8 +241,9 @@
     <div id="map"></div>
   </div>
 
+  <!-- KONTROL BAWAH KHUSUS NAVIGASI & PEREKAMAN -->
   <div class="controls">
-    <button class="btn btn-sky" onclick="locateUser()">📍 Pos</button>
+    <button class="btn btn-sky" onclick="locateUser()">📍 Posisi Saya</button>
     <button class="btn btn-purple" onclick="openModal('add-pos-modal')">🚩 Tandai</button>
     <button class="btn btn-emerald" id="btn-start-rec" onclick="startRecording()">▶️ Start</button>
     <button class="btn btn-amber" id="btn-pause-rec" onclick="pauseRecording()" disabled>⏸️ Pause</button>
@@ -272,7 +274,7 @@
       <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Status Perangkat</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
         <input type="text" id="team-group-input" placeholder="Nama Grup (Misal: TimHore)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
-        <input type="text" id="team-name-input" placeholder="Nama Anda" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;" readonly>
+        <input type="text" id="team-name-input" placeholder="Nama Anda (Misal: Mem / Juki)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
       </div>
       <div style="display: flex; gap: 6px; margin-bottom: 10px;">
         <button class="btn btn-sky" style="flex: 1; padding: 8px;" onclick="toggleLiveTracking(true)">Aktifkan Live</button>
@@ -336,7 +338,6 @@
     let map;
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
-    let loggedInUser = localStorage.getItem('iguide_logged_user_v17') || '';
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -360,63 +361,11 @@
     let wakeLock = null;
     let isLiveActive = localStorage.getItem('is_live_active_v17') === 'true';
     let myTeamGroup = localStorage.getItem('team_group') || '';
-    let myTeamName = loggedInUser;
+    let myTeamName = localStorage.getItem('team_name') || '';
     let isSosActive = false;
     let liveSyncInterval = null;
     let activeChartInstances = {};
     let sosAudioInterval = null;
-
-    // --- SISTEM AUTENTIKASI & BLOKIR USER ---
-    function checkUserAccessAndLogin() {
-      if (!loggedInUser) {
-        document.getElementById('login-modal').style.display = 'flex';
-      } else {
-        verifyUserStatus(loggedInUser);
-      }
-    }
-
-    function registerAndLoginUser() {
-      let inputName = document.getElementById('auth-username-input').value.trim();
-      if (!inputName) {
-        alert("Harap masukkan nama atau ID Anda!");
-        return;
-      }
-      
-      let cleanName = inputName.replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase();
-
-      db.ref(`blocked_users/${cleanName}`).once('value', (snapshot) => {
-        if (snapshot.exists() && snapshot.val() === true) {
-          alert("❌ Akses Ditolak! Akun Anda telah diblokir oleh Administrator.");
-          return;
-        }
-
-        db.ref(`registered_users/${cleanName}`).set({
-          username: cleanName,
-          lastLogin: new Date().toLocaleString('id-ID'),
-          userAgent: navigator.userAgent
-        });
-
-        loggedInUser = cleanName;
-        myTeamName = cleanName;
-        localStorage.setItem('iguide_logged_user_v17', cleanName);
-        document.getElementById('login-modal').style.display = 'none';
-        alert(`✅ Berhasil masuk sebagai: ${cleanName}`);
-        
-        initMap();
-      });
-    }
-
-    function verifyUserStatus(username) {
-      db.ref(`blocked_users/${username}`).once('value', (snapshot) => {
-        if (snapshot.exists() && snapshot.val() === true) {
-          alert("❌ Akses Ditolak! Akun Anda telah diblokir.");
-          localStorage.removeItem('iguide_logged_user_v17');
-          location.reload();
-        } else {
-          initMap();
-        }
-      });
-    }
 
     async function requestScreenWakeLock() {
       try {
@@ -501,12 +450,12 @@
       renderCheckpoints();
       autoLoadAllGPXToMap();
 
-      if (myTeamGroup) {
+      if (myTeamGroup && myTeamName) {
         document.getElementById('team-group-input').value = myTeamGroup;
+        document.getElementById('team-name-input').value = myTeamName;
       }
-      document.getElementById('team-name-input').value = loggedInUser;
 
-      if (isLiveActive && myTeamGroup && loggedInUser) {
+      if (isLiveActive && myTeamGroup && myTeamName) {
         document.getElementById('team-status-label').textContent = "Aktif";
         document.getElementById('team-status-label').style.color = "#34d399";
         listenToTeamMembers();
@@ -548,7 +497,7 @@
     }
 
     function triggerSOS() {
-      if (!isLiveActive || !myTeamGroup || !loggedInUser) {
+      if (!isLiveActive || !myTeamGroup || !myTeamName) {
         alert("Harap aktifkan 'Live Tim' terlebih dahulu agar sinyal SOS terkirim ke anggota tim!");
         openModal('team-modal');
         return;
@@ -579,7 +528,7 @@
         return;
       }
       db.ref(`chats/${myTeamGroup}`).push({
-        sender: loggedInUser,
+        sender: myTeamName,
         text: text,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
       });
@@ -603,7 +552,7 @@
         if (chats) {
           Object.keys(chats).forEach(key => {
             const msg = chats[key];
-            const isMe = msg.sender === loggedInUser;
+            const isMe = msg.sender === myTeamName;
             container.innerHTML += `
               <div style="background:${isMe ? '#1e3a8a' : '#1e293b'}; padding:6px 8px; border-radius:6px; font-size:0.7rem; border-left:3px solid ${isMe ? '#38bdf8' : '#34d399'};">
                 <div style="display:flex; justify-content:space-between; color:#94a3b8; font-size:0.6rem; margin-bottom:2px;">
@@ -681,18 +630,21 @@
     function toggleLiveTracking(enable) {
       if (enable) {
         let rawGroup = document.getElementById('team-group-input').value.trim();
-        if (!rawGroup) { alert("Isi Nama Grup terlebih dahulu!"); return; }
+        let rawName = document.getElementById('team-name-input').value.trim();
+        if (!rawGroup || !rawName) { alert("Isi Nama Grup & Nama Anda!"); return; }
 
         myTeamGroup = rawGroup.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+        myTeamName = rawName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 
         localStorage.setItem('team_group', myTeamGroup);
+        localStorage.setItem('team_name', myTeamName);
         localStorage.setItem('is_live_active_v17', 'true');
         isLiveActive = true;
 
         document.getElementById('team-status-label').textContent = "Aktif";
         document.getElementById('team-status-label').style.color = "#34d399";
         closeModal('team-modal');
-        alert(`Live tracking aktif untuk grup "${myTeamGroup}"!`);
+        alert(`Live tracking aktif untuk grup "${myTeamGroup}" sebagai "${myTeamName}"!`);
         
         listenToTeamMembers();
         listenToTeamChat();
@@ -707,8 +659,8 @@
         stopSOSSirena();
         localStorage.setItem('is_live_active_v17', 'false');
         if (liveSyncInterval) clearInterval(liveSyncInterval);
-        if (myTeamGroup && loggedInUser) {
-          db.ref(`teams/${myTeamGroup}/${loggedInUser}`).remove();
+        if (myTeamGroup && myTeamName) {
+          db.ref(`teams/${myTeamGroup}/${myTeamName}`).remove();
         }
         teamLayerGroup.clearLayers();
         document.getElementById('team-status-label').textContent = "Off";
@@ -720,11 +672,11 @@
     }
 
     function updateMyTeamLocation() {
-      if (!isLiveActive || !myTeamGroup || !loggedInUser) return;
+      if (!isLiveActive || !myTeamGroup || !myTeamName) return;
       if (!navigator.onLine) return;
       
-      db.ref(`teams/${myTeamGroup}/${loggedInUser}`).set({
-        name: loggedInUser,
+      db.ref(`teams/${myTeamGroup}/${myTeamName}`).set({
+        name: myTeamName,
         lat: currentLat,
         lng: currentLng,
         alt: currentAlt,
@@ -747,7 +699,7 @@
             const member = members[key];
             memberNamesList.push(`${member.name}${member.sos ? ' [🚨 SOS]' : ''}`);
 
-            if (member.sos && member.name !== loggedInUser) {
+            if (member.sos && member.name !== myTeamName) {
               anySosTriggered = true;
             }
 
@@ -780,6 +732,7 @@
           if (anySosTriggered) {
             banner.textContent = "🚨 ANGGOTA TIM MENGIRIMKAN SINYAL SOS DARURAT!";
             banner.style.display = "block";
+		  if (!sosAudioInterval) {
             playSOSSirena();
           } else if (!isSosActive) {
             banner.style.display = "none";
@@ -1232,8 +1185,7 @@
     function openModal(id) { document.getElementById(id).style.display = 'block'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    // Memulai pengecekan hak akses login saat aplikasi dibuka
-    window.onload = checkUserAccessAndLogin;
+    window.onload = initMap;
   </script>
 </body>
 </html>
