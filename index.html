@@ -29,13 +29,17 @@
 
     header { background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
     header h1 { font-size: 0.85rem; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 6px; }
-    .owner-tag { font-size: 0.65rem; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3); font-weight: 600; }
+    
+    .owner-tag { 
+      font-size: 0.65rem; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3); font-weight: 600; cursor: pointer; user-select: none; transition: all 0.2s;
+    }
+    .owner-tag.admin-active { background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(52, 211, 153, 0.5); }
     
     .recorder-panel { background: rgba(15, 23, 42, 0.95); padding: 5px 12px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: #94a3b8; flex-shrink: 0; }
 
     .menu-bar { background: #0f172a; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; z-index: 1500; position: relative; }
     .menu-dropdown { position: relative; display: inline-block; }
-    .menu-content { display: none; position: absolute; background-color: #1e293b; min-width: 160px; box-shadow: 0px 8px 16px rgba(0,0,0,0.6); z-index: 3000; border-radius: 6px; border: 1px solid #334155; padding: 6px; left: 0; top: 100%; }
+    .menu-content { display: none; position: absolute; background-color: #1e293b; min-width: 180px; box-shadow: 0px 8px 16px rgba(0,0,0,0.6); z-index: 3000; border-radius: 6px; border: 1px solid #334155; padding: 6px; left: 0; top: 100%; }
     .menu-content button { width: 100%; text-align: left; background: transparent; border: none; color: #e2e8f0; padding: 6px 8px; font-size: 0.7rem; border-radius: 4px; cursor: pointer; margin-bottom: 2px; }
     .menu-content button:hover { background: #334155; }
     .menu-dropdown:hover .menu-content { display: flex; flex-direction: column; }
@@ -156,9 +160,10 @@
 <body onclick="unlockAudioContext()">
 
   <header>
-    <h1>iGuide - Never Lose Your Way.</h1>
+    <h1>iGuide - Never Lose Your Way</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
-      <span class="owner-tag">crafted by - @xhieua</span>
+      <!-- TAG OWNER DENGAN KETUK 5X -->
+      <span id="owner-badge" class="owner-tag" onclick="handleOwnerTap()" title="Ketuk 5x untuk Mode Admin">crafted by - @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
     </div>
   </header>
@@ -172,9 +177,15 @@
   <div class="menu-bar">
     <div class="menu-dropdown">
       <button class="menu-btn">☰ Menu Navigasi & Sesi ▾</button>
-      <div class="menu-content">
-        <input type="file" id="gpx-file-input" accept=".gpx" style="display: none;" onchange="handleGPXUpload(this)">
-        <button onclick="document.getElementById('gpx-file-input').click()">📂 Upload GPX</button>
+      <div class="menu-content" id="main-menu-content">
+        <!-- TOMBOL UNTUK USER BIASA (Peta Personal) -->
+        <input type="file" id="gpx-personal-input" accept=".gpx" style="display: none;" onchange="handlePersonalGPXUpload(this)">
+        <button onclick="document.getElementById('gpx-personal-input').click()">📂 Upload GPX</button>
+        
+        <!-- TOMBOL KHUSUS SUPER ADMIN (Peta General Pusat) -->
+        <input type="file" id="gpx-general-input" accept=".gpx" style="display: none;" onchange="handleGeneralGPXUpload(this)">
+        <button id="admin-upload-btn" style="display: none; background: #065f46; color: #34d399;" onclick="document.getElementById('gpx-general-input').click()">☁️ Upload Peta General (Pusat)</button>
+
         <button onclick="openModal('gpx-modal')">🗺️ Pustaka GPX (<span id="gpx-count">0</span>)</button>
         <button onclick="openModal('history-modal')">📜 Riwayat Trip (<span id="history-count">0</span>)</button>
       </div>
@@ -241,8 +252,8 @@
   <!-- MODAL PUSTAKA GPX -->
   <div id="gpx-modal" class="modal">
     <div class="modal-content">
-      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">Pustaka Jalur GPX Gunung</h3>
-      <div id="gpx-list-container" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px;"></div>
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">Pustaka Jalur GPX (General & Personal)</h3>
+      <div id="gpx-list-container" style="max-height: 220px; overflow-y: auto; margin-bottom: 10px;"></div>
       <button class="btn btn-rose" style="width: 100%; padding: 8px;" onclick="closeModal('gpx-modal')">Tutup</button>
     </div>
   </div>
@@ -327,27 +338,31 @@
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 15;
     
-    let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
-    let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
+    // Peta Personal tersimpan lokal di HP masing-masing user
+    let savedPersonalGPX = JSON.parse(localStorage.getItem('saved_personal_gpx_v18') || '[]');
+    // Peta General disinkronkan dari Firebase pusat
+    let cachedGeneralGPX = {};
+
+    let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v18') || '[]');
     let activeGPXLayerGroup = L.layerGroup();
     let checkpointLayerGroup = L.layerGroup();
     let teamLayerGroup = L.layerGroup();
-    let savedCheckpoints = JSON.parse(localStorage.getItem('saved_checkpoints_v17') || '[]');
+    let savedCheckpoints = JSON.parse(localStorage.getItem('saved_checkpoints_v18') || '[]');
 
-    let isRecording = localStorage.getItem('is_recording_v17') === 'true';
+    let isRecording = localStorage.getItem('is_recording_v18') === 'true';
     let tripTimerInterval = null;
-    let tripStartTime = parseInt(localStorage.getItem('trip_start_time_timestamp_v17') || '0');
-    let tripSeconds = parseInt(localStorage.getItem('trip_seconds_v17') || '0');
-    let tripStartDateStr = localStorage.getItem('trip_start_date_v17') || "";
-    let recordedTrackPoints = JSON.parse(localStorage.getItem('recorded_track_points_v17') || '[]');
-    let recordedElevationLog = JSON.parse(localStorage.getItem('recorded_elevation_log_v17') || '[]');
+    let tripStartTime = parseInt(localStorage.getItem('trip_start_time_timestamp_v18') || '0');
+    let tripSeconds = parseInt(localStorage.getItem('trip_seconds_v18') || '0');
+    let tripStartDateStr = localStorage.getItem('trip_start_date_v18') || "";
+    let recordedTrackPoints = JSON.parse(localStorage.getItem('recorded_track_points_v18') || '[]');
+    let recordedElevationLog = JSON.parse(localStorage.getItem('recorded_elevation_log_v18') || '[]');
     let liveTrackLine = null;
-    let totalDistanceMeters = parseFloat(localStorage.getItem('total_distance_v17') || '0');
-    let startElevation = parseInt(localStorage.getItem('start_elevation_v17') || '0');
-    let maxElevation = parseInt(localStorage.getItem('max_elevation_v17') || '0');
+    let totalDistanceMeters = parseFloat(localStorage.getItem('total_distance_v18') || '0');
+    let startElevation = parseInt(localStorage.getItem('start_elevation_v18') || '0');
+    let maxElevation = parseInt(localStorage.getItem('max_elevation_v18') || '0');
 
     let wakeLock = null;
-    let isLiveActive = localStorage.getItem('is_live_active_v17') === 'true';
+    let isLiveActive = localStorage.getItem('is_live_active_v18') === 'true';
     let myTeamGroup = localStorage.getItem('team_group') || '';
     let myTeamName = localStorage.getItem('team_name') || '';
     let isSosActive = false;
@@ -355,6 +370,43 @@
     let activeChartInstances = {};
     let audioCtx = null;
     let sosActiveTimer = null;
+
+    // Sitem Super Admin tersembunyi dengan ketuk 5x
+    let ownerTapCount = 0;
+    let ownerTapTimer = null;
+    const SUPER_ADMIN_PIN = "1999"; // Ubah PIN sesuai keinginan Anda
+    let isSuperAdmin = localStorage.getItem('is_super_admin_v18') === 'true';
+
+    function handleOwnerTap() {
+      ownerTapCount++;
+      if (ownerTapTimer) clearTimeout(ownerTapTimer);
+      
+      if (ownerTapCount >= 5) {
+        ownerTapCount = 0;
+        if (isSuperAdmin) {
+          if (confirm("Nonaktifkan Mode Super Admin?")) {
+            isSuperAdmin = false;
+            localStorage.setItem('is_super_admin_v18', 'false');
+            document.getElementById('owner-badge').classList.remove('admin-active');
+            document.getElementById('admin-upload-btn').style.display = 'none';
+            alert("Mode Super Admin dimatikan.");
+          }
+        } else {
+          let pin = prompt("🔐 Masukkan PIN Super Admin:");
+          if (pin === SUPER_ADMIN_PIN) {
+            isSuperAdmin = true;
+            localStorage.setItem('is_super_admin_v18', 'true');
+            document.getElementById('owner-badge').classList.add('admin-active');
+            document.getElementById('admin-upload-btn').style.display = 'block';
+            alert("✨ Berhasil Masuk sebagai Super Admin! Menu Upload Peta General (Pusat) diaktifkan.");
+          } else if (pin !== null) {
+            alert("❌ PIN Salah!");
+          }
+        }
+      } else {
+        ownerTapTimer = setTimeout(() => { ownerTapCount = 0; }, 1500);
+      }
+    }
 
     async function requestScreenWakeLock() {
       try {
@@ -375,13 +427,10 @@
 
     function playSOSSirena() {
       if (sosActiveTimer) return;
-
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      if (audioCtx.state === 'suspended') { audioCtx.resume(); }
 
       const playSirenCycle = () => {
         try {
@@ -404,9 +453,7 @@
           osc.start(now);
           osc.stop(now + 1.8);
 
-          if ('vibrate' in navigator) {
-            navigator.vibrate([800, 300, 800]);
-          }
+          if ('vibrate' in navigator) { navigator.vibrate([800, 300, 800]); }
         } catch (e) { console.log("Siren error:", e); }
       };
 
@@ -449,20 +496,22 @@
 
       setTimeout(() => { map.invalidateSize(); }, 200);
 
+      if (isSuperAdmin) {
+        document.getElementById('owner-badge').classList.add('admin-active');
+        document.getElementById('admin-upload-btn').style.display = 'block';
+      }
+
       updateDateTimeDisplay();
       setInterval(updateDateTimeDisplay, 1000);
 
-      renderGPXLibrary();
       renderHistoryList();
       renderCheckpoints();
-      autoLoadAllGPXToMap();
+      
+      // Sinkronisasi Peta General dari Firebase & render pustaka
+      listenToGeneralGPX();
 
-      if (myTeamGroup) {
-        document.getElementById('team-group-input').value = myTeamGroup;
-      }
-      if (myTeamName) {
-        document.getElementById('team-name-input').value = myTeamName;
-      }
+      if (myTeamGroup) document.getElementById('team-group-input').value = myTeamGroup;
+      if (myTeamName) document.getElementById('team-name-input').value = myTeamName;
 
       if (isLiveActive && myTeamGroup && myTeamName) {
         document.getElementById('team-status-label').textContent = "Aktif";
@@ -504,6 +553,132 @@
       initCompassSensor();
       fetchRealtimeWeather(currentLat, currentLng);
       updateUIStatus();
+    }
+
+    // Mendengarkan Peta General dari Firebase
+    function listenToGeneralGPX() {
+      db.ref('gpx_general_library').on('value', (snapshot) => {
+        cachedGeneralGPX = snapshot.val() || {};
+        renderGPXLibrary();
+        renderAllGPXToMap();
+      });
+    }
+
+    // Super Admin Upload Peta ke Firebase
+    function handleGeneralGPXUpload(input) {
+      if (!isSuperAdmin) { alert("Akses ditolak! Khusus Super Admin."); return; }
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const fileKey = file.name.replace(/[^a-zA-Z0-9]/g, "_");
+        db.ref(`gpx_general_library/${fileKey}`).set({
+          name: file.name.replace('.gpx', ''),
+          content: e.target.result,
+          date: new Date().toLocaleDateString()
+        }, (error) => {
+          if (error) {
+            alert("Gagal mengunggah ke pusat: " + error.message);
+          } else {
+            alert(`Peta General "${file.name}" berhasil diunggah ke Pusat dan otomatis terpasang ke semua tim!`);
+          }
+        });
+      };
+      reader.readAsText(file);
+    }
+
+    // Super Admin Hapus Peta dari Firebase
+    function deleteGeneralGPX(key) {
+      if (!isSuperAdmin) return;
+      if (confirm("Hapus peta general ini dari server pusat? Peta akan hilang dari semua perangkat tim.")) {
+        db.ref(`gpx_general_library/${key}`).remove();
+      }
+    }
+
+    // User Upload Peta Personal (Hanya di HP Sendiri)
+    function handlePersonalGPXUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        savedPersonalGPX.push({ id: Date.now(), name: file.name.replace('.gpx', ''), content: e.target.result, date: new Date().toLocaleDateString() });
+        localStorage.setItem('saved_personal_gpx_v18', JSON.stringify(savedPersonalGPX));
+        renderGPXLibrary();
+        renderAllGPXToMap();
+        alert(`Peta Personal "${file.name}" berhasil disimpan di perangkat Anda!`);
+      };
+      reader.readAsText(file);
+    }
+
+    function deletePersonalGPX(id) {
+      savedPersonalGPX = savedPersonalGPX.filter(item => item.id !== id);
+      localStorage.setItem('saved_personal_gpx_v18', JSON.stringify(savedPersonalGPX));
+      renderGPXLibrary();
+      renderAllGPXToMap();
+    }
+
+    function renderGPXLibrary() {
+      const container = document.getElementById('gpx-list-container');
+      container.innerHTML = '';
+
+      let totalCount = 0;
+
+      // Render Peta General
+      container.innerHTML += `<div style="font-size:0.65rem; color:#38bdf8; font-weight:bold; margin-bottom:4px;">🌐 Peta General (Resmi Pusat):</div>`;
+      const generalKeys = Object.keys(cachedGeneralGPX);
+      if (generalKeys.length === 0) {
+        container.innerHTML += `<p style="color:#94a3b8; font-size:0.7rem; margin-bottom:6px; padding-left:6px;">Belum ada peta general.</p>`;
+      } else {
+        generalKeys.forEach(key => {
+          totalCount++;
+          const gpx = cachedGeneralGPX[key];
+          let deleteBtn = isSuperAdmin ? `<button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteGeneralGPX('${key}')">Hapus</button>` : `<span style="font-size:0.6rem; color:#34d399;">[Resmi]</span>`;
+          container.innerHTML += `<div class="list-item" style="display:flex; justify-content:space-between; align-items:center;"><div><strong>⛰️ ${gpx.name}</strong></div>${deleteBtn}</div>`;
+        });
+      }
+
+      // Render Peta Personal
+      container.innerHTML += `<div style="font-size:0.65rem; color:#f59e0b; font-weight:bold; margin:8px 0 4px 0;">📂 Peta Personal (Privat Anda):</div>`;
+      if (savedPersonalGPX.length === 0) {
+        container.innerHTML += `<p style="color:#94a3b8; font-size:0.7rem; padding-left:6px;">Belum ada peta personal.</p>`;
+      } else {
+        savedPersonalGPX.forEach(gpx => {
+          totalCount++;
+          container.innerHTML += `<div class="list-item" style="display:flex; justify-content:space-between; align-items:center;"><div><strong>🗺️ ${gpx.name}</strong></div><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deletePersonalGPX(${gpx.id})">Hapus</button></div>`;
+        });
+      }
+
+      document.getElementById('gpx-count').textContent = totalCount;
+    }
+
+    function renderAllGPXToMap() {
+      activeGPXLayerGroup.clearLayers();
+
+      // Load General GPX
+      Object.keys(cachedGeneralGPX).forEach(key => {
+        try {
+          const gpx = cachedGeneralGPX[key];
+          const gpxLayer = new L.GPX(gpx.content, { 
+            async: true, 
+            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
+            polyline_options: { color: '#38bdf8', weight: 4, opacity: 0.85 } 
+          });
+          gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
+          activeGPXLayerGroup.addLayer(gpxLayer);
+        } catch (err) { console.error(err); }
+      });
+
+      // Load Personal GPX
+      savedPersonalGPX.forEach(gpx => {
+        try {
+          const gpxLayer = new L.GPX(gpx.content, { 
+            async: true, 
+            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
+            polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } 
+          });
+          activeGPXLayerGroup.addLayer(gpxLayer);
+        } catch (err) { console.error(err); }
+      });
     }
 
     function triggerSOS() {
@@ -650,7 +825,7 @@
 
         localStorage.setItem('team_group', myTeamGroup);
         localStorage.setItem('team_name', myTeamName);
-        localStorage.setItem('is_live_active_v17', 'true');
+        localStorage.setItem('is_live_active_v18', 'true');
         isLiveActive = true;
 
         document.getElementById('team-status-label').textContent = "Aktif";
@@ -669,7 +844,7 @@
         isSosActive = false;
         document.getElementById('sos-banner').style.display = "none";
         stopSOSSirena();
-        localStorage.setItem('is_live_active_v17', 'false');
+        localStorage.setItem('is_live_active_v18', 'false');
         if (liveSyncInterval) clearInterval(liveSyncInterval);
         if (myTeamGroup && myTeamName) {
           db.ref(`teams/${myTeamGroup}/${myTeamName}`).remove();
@@ -756,7 +931,6 @@
       });
     }
 
-    // Fungsi Elevasi Aman: Pastikan tidak pernah minus (< 0) dan abaikan error API
     function calculateElevationForCoord(lat, lng, callback) {
       if (!navigator.onLine) {
         callback(null);
@@ -768,7 +942,7 @@
         .then(data => {
           if (data && data.results && data.results[0] && data.results[0].elevation !== undefined) {
             let alt = Math.round(data.results[0].elevation);
-            if (alt < 0) alt = 0; // Cegah nilai minus
+            if (alt < 0) alt = 0;
             callback(alt);
           } else { 
             callback(null); 
@@ -789,7 +963,7 @@
       const processSave = (photoBase64) => {
         const cp = { id: Date.now(), name: nameInput, lat: currentLat, lng: currentLng, alt: currentAlt, photo: photoBase64 || null };
         savedCheckpoints.push(cp);
-        localStorage.setItem('saved_checkpoints_v17', JSON.stringify(savedCheckpoints));
+        localStorage.setItem('saved_checkpoints_v18', JSON.stringify(savedCheckpoints));
         renderCheckpoints();
         closeModal('add-pos-modal');
         document.getElementById('pos-name-input').value = '';
@@ -826,18 +1000,13 @@
             updateUIStatus();
           } else {
             calculateElevationForCoord(currentLat, currentLng, (estAlt) => {
-              if (estAlt !== null && estAlt !== undefined) {
-                currentAlt = estAlt;
-              }
+              if (estAlt !== null && estAlt !== undefined) currentAlt = estAlt;
               updateUIStatus();
             });
           }
-        }, () => {
-          updateUIStatus();
-        }, { enableHighAccuracy: true, timeout: 5000 });
+        }, () => { updateUIStatus(); }, { enableHighAccuracy: true, timeout: 5000 });
 
         navigator.geolocation.watchPosition(position => {
-          // Validasi akurasi GPS: Jika akurasi terlalu buruk (>50 meter), abaikan agar tidak menarik garis lurus fiktif
           if (position.coords.accuracy > 50) return;
 
           currentLat = position.coords.latitude;
@@ -849,9 +1018,7 @@
             updateUIStatus();
           } else {
             calculateElevationForCoord(currentLat, currentLng, (estAlt) => {
-              if (estAlt !== null && estAlt !== undefined) {
-                currentAlt = estAlt;
-              }
+              if (estAlt !== null && estAlt !== undefined) currentAlt = estAlt;
               updateUIStatus();
             });
           }
@@ -861,9 +1028,7 @@
           console.warn("GPS Warning:", error.message);
           updateUIStatus();
         }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 });
-      } else {
-        updateUIStatus();
-      }
+      } else { updateUIStatus(); }
     }
 
     function updateUIStatus() {
@@ -875,30 +1040,28 @@
 
       if (isLiveActive) updateMyTeamLocation();
 
-      // Hanya rekam jika tombol Start aktif dan status beneran merekam (bukan di-pause)
       if (isRecording) {
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
 
-        // Pastikan jarak minimal perpindahan 3 meter agar tidak merekam titik ngawur saat diam/terkunci
         if (!lastPoint || map.distance(lastPoint, newPt) >= 3) {
           recordedTrackPoints.push(newPt);
-          localStorage.setItem('recorded_track_points_v17', JSON.stringify(recordedTrackPoints));
+          localStorage.setItem('recorded_track_points_v18', JSON.stringify(recordedTrackPoints));
 
           const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
           recordedElevationLog.push({ time: timeNow, alt: currentAlt });
-          localStorage.setItem('recorded_elevation_log_v17', JSON.stringify(recordedElevationLog));
+          localStorage.setItem('recorded_elevation_log_v18', JSON.stringify(recordedElevationLog));
 
           if (lastPoint) {
             const distIncrement = map.distance(lastPoint, newPt);
             totalDistanceMeters += distIncrement;
-            localStorage.setItem('total_distance_v17', totalDistanceMeters);
+            localStorage.setItem('total_distance_v18', totalDistanceMeters);
             document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
           }
 
           if (currentAlt > maxElevation) {
             maxElevation = currentAlt;
-            localStorage.setItem('max_elevation_v17', maxElevation);
+            localStorage.setItem('max_elevation_v18', maxElevation);
           }
 
           if (!liveTrackLine) {
@@ -908,51 +1071,6 @@
       }
     }
 
-    function handleGPXUpload(input) {
-      const file = input.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        savedGPXFiles.push({ name: file.name.replace('.gpx', ''), content: e.target.result, date: new Date().toLocaleDateString() });
-        localStorage.setItem('saved_gpx_library_v17', JSON.stringify(savedGPXFiles));
-        renderGPXLibrary();
-        autoLoadAllGPXToMap();
-        alert(`Jalur GPX "${file.name}" dimuat!`);
-      };
-      reader.readAsText(file);
-    }
-
-    function renderGPXLibrary() {
-      const container = document.getElementById('gpx-list-container');
-      container.innerHTML = savedGPXFiles.length === 0 ? '<p style="color:#94a3b8; text-align:center; padding:10px;">Kosong</p>' : '';
-      savedGPXFiles.forEach((gpx, index) => {
-        container.innerHTML += `<div class="list-item" style="display:flex; justify-content:space-between; align-items:center;"><div><strong>⛰️ ${gpx.name}</strong></div><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteGPX(${index})">Hapus</button></div>`;
-      });
-      document.getElementById('gpx-count').textContent = savedGPXFiles.length;
-    }
-
-    function autoLoadAllGPXToMap() {
-      activeGPXLayerGroup.clearLayers();
-      savedGPXFiles.forEach(gpx => {
-        try {
-          const gpxLayer = new L.GPX(gpx.content, { 
-            async: true, 
-            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
-            polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } 
-          });
-          gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
-          activeGPXLayerGroup.addLayer(gpxLayer);
-        } catch (err) { console.error(err); }
-      });
-    }
-
-    function deleteGPX(index) {
-      savedGPXFiles.splice(index, 1);
-      localStorage.setItem('saved_gpx_library_v17', JSON.stringify(savedGPXFiles));
-      renderGPXLibrary();
-      autoLoadAllGPXToMap();
-    }
-
     function startTimerInterval() {
       if (tripTimerInterval) clearInterval(tripTimerInterval);
       tripTimerInterval = setInterval(() => {
@@ -960,7 +1078,7 @@
         
         const elapsedMs = Date.now() - tripStartTime;
         tripSeconds = Math.floor(elapsedMs / 1000);
-        localStorage.setItem('trip_seconds_v17', tripSeconds);
+        localStorage.setItem('trip_seconds_v18', tripSeconds);
 
         const days = Math.floor(tripSeconds / 86400);
         const hrs = Math.floor((tripSeconds % 86400) / 3600);
@@ -974,26 +1092,26 @@
 
     function startRecording() {
       isRecording = true;
-      localStorage.setItem('is_recording_v17', 'true');
+      localStorage.setItem('is_recording_v18', 'true');
       
       if (!tripStartTime || tripStartTime === 0) {
         tripStartTime = Date.now();
-        localStorage.setItem('trip_start_time_timestamp_v17', tripStartTime);
+        localStorage.setItem('trip_start_time_timestamp_v18', tripStartTime);
       }
 
       startElevation = currentAlt;
       maxElevation = currentAlt;
-      localStorage.setItem('start_elevation_v17', startElevation);
-      localStorage.setItem('max_elevation_v17', maxElevation);
+      localStorage.setItem('start_elevation_v18', startElevation);
+      localStorage.setItem('max_elevation_v18', maxElevation);
       
       tripStartDateStr = new Date().toLocaleString('id-ID');
-      localStorage.setItem('trip_start_date_v17', tripStartDateStr);
+      localStorage.setItem('trip_start_date_v18', tripStartDateStr);
 
       if (recordedTrackPoints.length === 0) {
         recordedTrackPoints = [[currentLat, currentLng]];
-        localStorage.setItem('recorded_track_points_v17', JSON.stringify(recordedTrackPoints));
+        localStorage.setItem('recorded_track_points_v18', JSON.stringify(recordedTrackPoints));
         recordedElevationLog = [{ time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}), alt: currentAlt }];
-        localStorage.setItem('recorded_elevation_log_v17', JSON.stringify(recordedElevationLog));
+        localStorage.setItem('recorded_elevation_log_v18', JSON.stringify(recordedElevationLog));
       }
 
       document.getElementById('btn-start-rec').disabled = true;
@@ -1007,7 +1125,7 @@
 
     function pauseRecording() {
       isRecording = false;
-      localStorage.setItem('is_recording_v17', 'false');
+      localStorage.setItem('is_recording_v18', 'false');
       clearInterval(tripTimerInterval);
       tripTimerInterval = null;
       if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
@@ -1043,17 +1161,17 @@
           gpxData: gpxTrackXML,
           elevationLog: [...recordedElevationLog]
         });
-        localStorage.setItem('saved_trip_history_v17', JSON.stringify(savedHistory));
+        localStorage.setItem('saved_trip_history_v18', JSON.stringify(savedHistory));
         renderHistoryList();
         alert("Trip berhasil disimpan ke Riwayat & siap di-download!");
       }
 
-      localStorage.removeItem('is_recording_v17');
-      localStorage.removeItem('trip_seconds_v17');
-      localStorage.removeItem('trip_start_time_timestamp_v17');
-      localStorage.removeItem('recorded_track_points_v17');
-      localStorage.removeItem('recorded_elevation_log_v17');
-      localStorage.removeItem('total_distance_v17');
+      localStorage.removeItem('is_recording_v18');
+      localStorage.removeItem('trip_seconds_v18');
+      localStorage.removeItem('trip_start_time_timestamp_v18');
+      localStorage.removeItem('recorded_track_points_v18');
+      localStorage.removeItem('recorded_elevation_log_v18');
+      localStorage.removeItem('total_distance_v18');
 
       tripSeconds = 0; tripStartTime = 0; totalDistanceMeters = 0; recordedTrackPoints = []; recordedElevationLog = [];
       if (liveTrackLine) { map.removeLayer(liveTrackLine); liveTrackLine = null; }
@@ -1175,7 +1293,7 @@
 
     function deleteHistory(index) {
       savedHistory.splice(index, 1);
-      localStorage.setItem('saved_trip_history_v17', JSON.stringify(savedHistory));
+      localStorage.setItem('saved_trip_history_v18', JSON.stringify(savedHistory));
       renderHistoryList();
     }
 
@@ -1183,7 +1301,7 @@
       checkpointLayerGroup.clearLayers();
       savedCheckpoints.forEach((cp) => {
         const photoHTML = cp.photo ? `<img src="${cp.photo}" class="pos-popup-img" onclick="openLightbox('${cp.photo}')">` : '';
-        const marker = L.marker([cp.lat, cp.lng]).bindPopup(`<div style="font-size:0.75rem;"><b>${cp.name}</b><br>Lat: ${cp.lat.toFixed(5)}<br>Lng: ${cp.lng.toFixed(5)}<br>Elevasi: ${cp.alt} mdpl${photoHTML}<button onclick="deleteCheckpoint(${cp.id})" style="background:#dc2626;color:#fff;border:none;padding:4px;width:100%;margin-top:6px;border-radius:4px;">Hapus</button></div>`);
+        const marker = L.marker([cp.lat, cp.lng]).bindPopup(`<div style="font-size:0.75rem;"><b>${cp.name}</b><br>Lat: ${cp.lat.toFixed(5)}<br>Lng: ${cp.lng.toFixed(5)}<br>Elevasi: ${cp.alt} mdpl${photoHTML}<button onclick="deleteCheckpoint(${cp.id})" style="background:#dc2626;color:#white;border:none;padding:4px;width:100%;margin-top:6px;border-radius:4px;">Hapus</button></div>`);
         checkpointLayerGroup.addLayer(marker);
       });
     }
@@ -1195,7 +1313,7 @@
 
     function deleteCheckpoint(id) {
       savedCheckpoints = savedCheckpoints.filter(cp => cp.id !== id);
-      localStorage.setItem('saved_checkpoints_v17', JSON.stringify(savedCheckpoints));
+      localStorage.setItem('saved_checkpoints_v18', JSON.stringify(savedCheckpoints));
       renderCheckpoints();
       map.closePopup();
     }
