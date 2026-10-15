@@ -33,7 +33,6 @@
     
     .recorder-panel { background: rgba(15, 23, 42, 0.95); padding: 5px 12px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: #94a3b8; flex-shrink: 0; }
 
-    /* MENU BAR AMAN DARI KOMPAS */
     .menu-bar { background: #0f172a; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; z-index: 1500; position: relative; }
     .menu-dropdown { position: relative; display: inline-block; }
     .menu-content { display: none; position: absolute; background-color: #1e293b; min-width: 160px; box-shadow: 0px 8px 16px rgba(0,0,0,0.6); z-index: 3000; border-radius: 6px; border: 1px solid #334155; padding: 6px; left: 0; top: 100%; }
@@ -52,7 +51,6 @@
     .map-container { flex-grow: 1; width: 100%; position: relative; display: flex; overflow: hidden; }
     #map { width: 100%; height: 100%; background: #0f172a; z-index: 1; }
 
-    /* BANNER PERINGATAN SOS */
     #sos-banner {
       display: none;
       position: absolute;
@@ -76,7 +74,6 @@
       100% { background: #dc2626; border-color: #f87171; }
     }
 
-    /* KOMPOSISI KOMPAS DIPINDAH KE BAWAH KIRI (DI ATAS KONTROL ZOOM) AGAR TIDAK MENUTUP MENU */
     .compass-widget {
       position: absolute;
       bottom: 15px;
@@ -173,13 +170,13 @@
     </div>
   </header>
 
+  <!-- PANEL TANGGAL & WAKTU REALTIME DIKEMBALIKAN -->
   <div class="recorder-panel">
     <div>⏱️ <strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
-    <div>🎯 ETA: <span id="eta-info" style="color:#34d399">-</span></div>
+    <div>📅 <span id="trip-datetime">-</span></div>
     <div id="recorder-state" style="color: #34d399; font-weight: 600;">Siap</div>
   </div>
 
-  <!-- MENU BAR DROPDOWN DI ATAS PETA -->
   <div class="menu-bar">
     <div class="menu-dropdown">
       <button class="menu-btn">☰ Menu Navigasi & Sesi ▾</button>
@@ -199,11 +196,11 @@
   <div class="status-bar">
     <div class="status-card">
       <h4>Ketinggian</h4>
-      <p id="altitude">1653 mdpl</p>
+      <p id="altitude">-- mdpl</p>
     </div>
     <div class="status-card">
       <h4>Cuaca Realtime</h4>
-      <p id="weather-info">22°C (Cerah)</p>
+      <p id="weather-info">Memuat...</p>
     </div>
     <div class="status-card">
       <h4>Jarak</h4>
@@ -211,14 +208,13 @@
     </div>
     <div class="status-card">
       <h4>Baterai HP</h4>
-      <p id="battery-status">100%</p>
+      <p id="battery-status">--%</p>
     </div>
   </div>
 
   <div class="map-container">
     <div id="sos-banner">🚨 SINYAL SOS DARURAT AKTIF!</div>
     
-    <!-- KOMPAS DI POJOK KIRI BAWAH PETA -->
     <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
@@ -900,18 +896,6 @@
             totalDistanceMeters += distIncrement;
             localStorage.setItem('total_distance_v17', totalDistanceMeters);
             document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
-
-            if (tripSeconds > 60 && totalDistanceMeters > 50) {
-              const speedMps = totalDistanceMeters / tripSeconds;
-              const estimatedTotalKm = 5.0; 
-              const remainingKm = Math.max(0, estimatedTotalKm - (totalDistanceMeters / 1000));
-              if (speedMps > 0.1) {
-                const remainingSeconds = remainingKm * 1000 / speedMps;
-                const remHrs = Math.floor(remainingSeconds / 3600);
-                const remMins = Math.floor((remainingSeconds % 3600) / 60);
-                document.getElementById('eta-info').textContent = `${remHrs}j ${remMins}m lagi`;
-              }
-            }
           }
 
           if (currentAlt > maxElevation) {
@@ -1077,7 +1061,6 @@
       if (liveTrackLine) { map.removeLayer(liveTrackLine); liveTrackLine = null; }
       document.getElementById('trip-timer').textContent = "00:00:00";
       document.getElementById('trip-distance').textContent = "0.00 km";
-      document.getElementById('eta-info').textContent = "-";
       document.getElementById('btn-start-rec').disabled = false;
       document.getElementById('btn-start-rec').textContent = "▶️ Start";
       document.getElementById('btn-pause-rec').disabled = true;
