@@ -31,7 +31,7 @@
     header h1 { font-size: 0.85rem; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 6px; }
     .owner-tag { font-size: 0.65rem; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3); font-weight: 600; }
     
-    .recorder-panel { background: rgba(15, 23, 42, 0.95); padding: 5px 12px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; font-size: 0.65rem; color: #94a3b8; flex-shrink: 0; }
+    .recorder-panel { background: rgba(15, 23, 42, 0.95); padding: 5px 12px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: #94a3b8; flex-shrink: 0; }
 
     .menu-panel { background: #0f172a; padding: 5px 10px; display: flex; gap: 6px; overflow-x: auto; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
     .menu-panel::-webkit-scrollbar { display: none; }
@@ -41,12 +41,12 @@
     .status-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 5px 8px; background: #0f172a; text-align: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
     .status-card { background: rgba(30, 41, 59, 0.7); padding: 4px 2px; border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.4); }
     .status-card h4 { font-size: 0.45rem; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 1px; }
-    .status-card p { font-size: 0.7rem; font-weight: 700; color: #38bdf8; }
+    .status-card p { font-size: 0.68rem; font-weight: 700; color: #38bdf8; }
 
     .map-container { flex-grow: 1; width: 100%; position: relative; display: flex; overflow: hidden; }
     #map { width: 100%; height: 100%; background: #0f172a; z-index: 1; }
 
-    /* BANNER PERINGATAN SOS DARURAT */
+    /* BANNER PERINGATAN SOS */
     #sos-banner {
       display: none;
       position: absolute;
@@ -59,7 +59,7 @@
       padding: 8px 14px;
       border-radius: 8px;
       z-index: 2500;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
       text-align: center;
       box-shadow: 0 4px 20px rgba(239, 68, 68, 0.7);
@@ -122,9 +122,8 @@
     .offline { background: #7f1d1d; color: #fca5a5; }
 
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 2000; padding: 12px; overflow-y: auto; }
-    .modal-content { background: #1e293b; padding: 16px; border-radius: 10px; max-width: 440px; margin: 30px auto; border: 1px solid #334155; }
-    .list-item { background: #0f172a; padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; font-size: 0.75rem; border-left: 3px solid #38bdf8; border: 1px solid #1e293b; cursor: pointer; }
-    .list-item:hover { background: #162032; }
+    .modal-content { background: #1e293b; padding: 16px; border-radius: 10px; max-width: 440px; margin: 20px auto; border: 1px solid #334155; }
+    .list-item { background: #0f172a; padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; font-size: 0.75rem; border-left: 3px solid #38bdf8; border: 1px solid #1e293b; }
     
     .pos-popup-img { width: 100%; max-height: 110px; object-fit: cover; border-radius: 6px; margin-top: 6px; border: 1px solid #334155; cursor: pointer; }
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
@@ -135,7 +134,7 @@
       border: 1px solid #38bdf8 !important;
       color: #38bdf8 !important;
       font-weight: 700 !important;
-      font-size: 0.7rem !important;
+      font-size: 0.68rem !important;
       padding: 3px 6px !important;
       border-radius: 6px !important;
       box-shadow: 0 4px 8px rgba(0,0,0,0.5) !important;
@@ -147,7 +146,7 @@
       border: 2px solid #ef4444 !important;
       color: #f8fafc !important;
       font-weight: 800 !important;
-      font-size: 0.75rem !important;
+      font-size: 0.72rem !important;
       padding: 4px 8px !important;
       border-radius: 6px !important;
       box-shadow: 0 0 15px rgba(239, 68, 68, 0.9) !important;
@@ -169,7 +168,7 @@
 
   <div class="recorder-panel">
     <div>⏱️ <strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
-    <div>📅 <span id="trip-datetime">-</span></div>
+    <div>🎯 ETA: <span id="eta-info" style="color:#34d399">-</span></div>
     <div id="recorder-state" style="color: #34d399; font-weight: 600;">Siap</div>
   </div>
 
@@ -177,8 +176,9 @@
     <input type="file" id="gpx-file-input" accept=".gpx" style="display: none;" onchange="handleGPXUpload(this)">
     <button class="menu-btn" onclick="document.getElementById('gpx-file-input').click()">📂 Upload GPX</button>
     <button class="menu-btn" onclick="openModal('gpx-modal')">🗺️ Pustaka GPX (<span id="gpx-count">0</span>)</button>
-    <button class="menu-btn" onclick="openModal('history-modal')">📜 Riwayat Trip (<span id="history-count">0</span>)</button>
+    <button class="menu-btn" onclick="openModal('history-modal')">📜 Riwayat (<span id="history-count">0</span>)</button>
     <button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="openModal('team-modal')">👥 Live Tim (<span id="team-status-label">Off</span>)</button>
+    <button class="menu-btn" style="background:#7c3aed; color:#fff;" onclick="openModal('chat-modal')">💬 Chat Tim</button>
   </div>
 
   <div class="status-bar">
@@ -195,8 +195,8 @@
       <p id="trip-distance">0.00 km</p>
     </div>
     <div class="status-card">
-      <h4>GPS</h4>
-      <p id="gps-status" style="color: #f59e0b;">Cari</p>
+      <h4>Baterai HP</h4>
+      <p id="battery-status">--%</p>
     </div>
   </div>
 
@@ -254,7 +254,7 @@
   <!-- MODAL LIVE TIM -->
   <div id="team-modal" class="modal">
     <div class="modal-content">
-      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Track Line</h3>
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">👥 Live Tim & Status Perangkat</h3>
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
         <input type="text" id="team-group-input" placeholder="Nama Grup (Misal: TimHore)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
         <input type="text" id="team-name-input" placeholder="Nama Anda (Misal: Mem / Juki)" style="padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;">
@@ -264,10 +264,30 @@
         <button class="btn btn-rose" style="padding: 8px;" onclick="toggleLiveTracking(false)">Matikan</button>
       </div>
       <div style="background: #0f172a; padding: 8px; border-radius: 6px; border: 1px solid #334155;">
-        <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📡 Anggota Terhubung di Grup Ini:</h4>
-        <div id="team-members-list" style="font-size: 0.7rem; color: #34d399; max-height: 80px; overflow-y: auto;">Belum terhubung</div>
+        <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📡 Anggota Terhubung & Baterai:</h4>
+        <div id="team-members-list" style="font-size: 0.7rem; color: #34d399; max-height: 90px; overflow-y: auto;">Belum terhubung</div>
       </div>
       <button class="btn" style="width: 100%; margin-top: 10px; background: #334155;" onclick="closeModal('team-modal')">Tutup</button>
+    </div>
+  </div>
+
+  <!-- MODAL QUICK CHAT TIM -->
+  <div id="chat-modal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">💬 Quick Chat & Pesan Tim</h3>
+      <div id="chat-messages-container" style="height: 200px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px; overflow-y: auto; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 0.7rem; color: #94a3b8; text-align: center;">Belum ada pesan. Aktifkan Live Tim untuk mulai chat.</span>
+      </div>
+      <div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
+        <button class="menu-btn" style="background:#1e3a8a;" onclick="sendQuickMessage('☕ Istirahat sebentar!')">☕ Istirahat</button>
+        <button class="menu-btn" style="background:#065f46;" onclick="sendQuickMessage('📍 Tunggu saya di pos depan!')">📍 Tunggu Pos</button>
+        <button class="menu-btn" style="background:#7c2d12;" onclick="sendQuickMessage('💧 Isi ulang air /水源')">💧 Air Habis</button>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <input type="text" id="chat-input-text" placeholder="Ketik pesan singkat..." style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;" onkeypress="if(event.key==='Enter') sendCustomMessage()">
+        <button class="btn btn-sky" style="padding: 8px 12px;" onclick="sendCustomMessage()">Kirim</button>
+      </div>
+      <button class="btn btn-rose" style="width: 100%; padding: 8px; margin-top: 10px;" onclick="closeModal('chat-modal')">Tutup</button>
     </div>
   </div>
 
@@ -301,6 +321,7 @@
     let map;
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
+    let batteryLevel = 100;
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -337,6 +358,22 @@
       } catch (err) { console.log("Wake Lock error:", err); }
     }
 
+    function initBatteryMonitor() {
+      if ('getBattery' in navigator) {
+        navigator.getBattery().then(bat => {
+          updateBatteryVal(bat.level);
+          bat.addEventListener('levelchange', () => updateBatteryVal(bat.level));
+        });
+      } else {
+        document.getElementById('battery-status').textContent = "100%";
+      }
+    }
+
+    function updateBatteryVal(level) {
+      batteryLevel = Math.round(level * 100);
+      document.getElementById('battery-status').textContent = `${batteryLevel}%`;
+    }
+
     function stringToColor(str) {
       let hash = 0;
       for (let i = 0; i < str.length; i++) {
@@ -367,6 +404,7 @@
 
       updateDateTimeDisplay();
       setInterval(updateDateTimeDisplay, 1000);
+      initBatteryMonitor();
 
       renderGPXLibrary();
       renderHistoryList();
@@ -382,6 +420,7 @@
         document.getElementById('team-status-label').textContent = "Aktif";
         document.getElementById('team-status-label').style.color = "#34d399";
         listenToTeamMembers();
+        listenToTeamChat();
         if (liveSyncInterval) clearInterval(liveSyncInterval);
         liveSyncInterval = setInterval(updateMyTeamLocation, 2500);
       }
@@ -419,7 +458,7 @@
 
     function triggerSOS() {
       if (!isLiveActive || !myTeamGroup || !myTeamName) {
-        alert("Harap aktifkan fitur 'Live Tim' terlebih dahulu agar sinyal SOS dapat dikirimkan ke anggota tim!");
+        alert("Harap aktifkan 'Live Tim' terlebih dahulu agar sinyal SOS terkirim ke anggota tim!");
         openModal('team-modal');
         return;
       }
@@ -428,7 +467,7 @@
       const banner = document.getElementById('sos-banner');
 
       if (isSosActive) {
-        if (confirm("⚠️ PERINGATAN DARURAT!\n\nAnda akan mengirimkan sinyal SOS Darurat ke seluruh perangkat dalam grup Anda. Lanjutkan?")) {
+        if (confirm("⚠️ PERINGATAN DARURAT!\n\nKirim sinyal SOS Darurat ke seluruh perangkat grup?")) {
           banner.style.display = "block";
           updateMyTeamLocation();
           alert("🚨 Sinyal SOS Berhasil Dikirim!");
@@ -438,8 +477,55 @@
       } else {
         banner.style.display = "none";
         updateMyTeamLocation();
-        alert("Sinyal SOS telah dibatalkan/dimatikan.");
+        alert("Sinyal SOS dimatikan.");
       }
+    }
+
+    function sendQuickMessage(text) {
+      if (!isLiveActive || !myTeamGroup) {
+        alert("Aktifkan Live Tim terlebih dahulu untuk mengirim chat!");
+        return;
+      }
+      db.ref(`chats/${myTeamGroup}`).push({
+        sender: myTeamName,
+        text: text,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      });
+    }
+
+    function sendCustomMessage() {
+      const input = document.getElementById('chat-input-text');
+      const text = input.value.trim();
+      if (!text) return;
+      sendQuickMessage(text);
+      input.value = '';
+    }
+
+    function listenToTeamChat() {
+      if (!myTeamGroup) return;
+      db.ref(`chats/${myTeamGroup}`).limitToLast(20).on('value', (snapshot) => {
+        const chats = snapshot.val();
+        const container = document.getElementById('chat-messages-container');
+        container.innerHTML = '';
+
+        if (chats) {
+          Object.keys(chats).forEach(key => {
+            const msg = chats[key];
+            const isMe = msg.sender === myTeamName;
+            container.innerHTML += `
+              <div style="background:${isMe ? '#1e3a8a' : '#1e293b'}; padding:6px 8px; border-radius:6px; font-size:0.7rem; border-left:3px solid ${isMe ? '#38bdf8' : '#34d399'};">
+                <div style="display:flex; justify-content:space-between; color:#94a3b8; font-size:0.6rem; margin-bottom:2px;">
+                  <b>${msg.sender}</b><span>${msg.time}</span>
+                </div>
+                <div style="color:#f8fafc; word-break:break-word;">${msg.text}</div>
+              </div>
+            `;
+          });
+          container.scrollTop = container.scrollHeight;
+        } else {
+          container.innerHTML = '<span style="font-size: 0.7rem; color: #94a3b8; text-align: center;">Belum ada pesan.</span>';
+        }
+      });
     }
 
     function fetchRealtimeWeather(lat, lng) {
@@ -520,6 +606,7 @@
         alert(`Live tracking aktif untuk grup "${myTeamGroup}" sebagai "${myTeamName}"!`);
         
         listenToTeamMembers();
+        listenToTeamChat();
         
         if (liveSyncInterval) clearInterval(liveSyncInterval);
         liveSyncInterval = setInterval(updateMyTeamLocation, 2500);
@@ -551,6 +638,7 @@
         lat: currentLat,
         lng: currentLng,
         alt: currentAlt,
+        battery: batteryLevel,
         path: recordedTrackPoints,
         sos: isSosActive,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
@@ -568,7 +656,7 @@
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
-            memberNamesList.push(member.name + (member.sos ? ' [🚨 SOS]' : ''));
+            memberNamesList.push(`${member.name} (${member.battery || 100}%)${member.sos ? ' [🚨 SOS]' : ''}`);
 
             if (member.sos && member.name !== myTeamName) {
               anySosTriggered = true;
@@ -587,12 +675,12 @@
               fillColor: memberColor, 
               fillOpacity: 1, 
               weight: 3
-            }).bindPopup(`<b>👥 ${member.name}</b> ${member.sos ? '<br><span style="color:#ef4444; font-weight:bold;">🚨 STATUS SOS DARURAT!</span>' : ''}<br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
+            }).bindPopup(`<b>👥 ${member.name}</b> ${member.sos ? '<br><span style="color:#ef4444; font-weight:bold;">🚨 STATUS SOS!</span>' : ''}<br>Baterai: ${member.battery || 100}% | Alt: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
             
             if (member.sos) {
               memberMarker.bindTooltip(`🚨 SOS: ${member.name}`, { permanent: true, direction: 'top', className: 'sos-label' });
             } else {
-              memberMarker.bindTooltip(member.name, { permanent: true, direction: 'top', className: 'team-label' });
+              memberMarker.bindTooltip(`${member.name} (${member.battery || 100}%)`, { permanent: true, direction: 'top', className: 'team-label' });
             }
             teamLayerGroup.addLayer(memberMarker);
           });
@@ -717,8 +805,6 @@
 
     function updateUIStatus() {
       document.getElementById('altitude').textContent = `${currentAlt} mdpl`;
-      document.getElementById('gps-status').textContent = "Akurat";
-      document.getElementById('gps-status').style.color = "#34d399";
 
       if (!userMarker) {
         userMarker = L.circleMarker([currentLat, currentLng], { radius: 9, color: '#ffffff', fillColor: '#38bdf8', fillOpacity: 1, weight: 2 }).addTo(map);
@@ -739,9 +825,23 @@
           localStorage.setItem('recorded_elevation_log_v17', JSON.stringify(recordedElevationLog));
 
           if (lastPoint) {
-            totalDistanceMeters += map.distance(lastPoint, newPt);
+            const distIncrement = map.distance(lastPoint, newPt);
+            totalDistanceMeters += distIncrement;
             localStorage.setItem('total_distance_v17', totalDistanceMeters);
             document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
+
+            // Hitung ETA (Asumsi sisa jarak asumsi jalur total 5km atau kalkulasi sisa dari GPX)
+            if (tripSeconds > 60 && totalDistanceMeters > 50) {
+              const speedMps = totalDistanceMeters / tripSeconds; // meter per detik
+              const estimatedTotalKm = 5.0; // Perkiraan target jalur gunung rata-rata
+              const remainingKm = Math.max(0, estimatedTotalKm - (totalDistanceMeters / 1000));
+              if (speedMps > 0.1) {
+                const remainingSeconds = remainingKm * 1000 / speedMps;
+                const remHrs = Math.floor(remainingSeconds / 3600);
+                const remMins = Math.floor((remainingSeconds % 3600) / 60);
+                document.getElementById('eta-info').textContent = `${remHrs}j ${remMins}m lagi`;
+              }
+            }
           }
 
           if (currentAlt > maxElevation) {
@@ -774,7 +874,7 @@
       const container = document.getElementById('gpx-list-container');
       container.innerHTML = savedGPXFiles.length === 0 ? '<p style="color:#94a3b8; text-align:center; padding:10px;">Kosong</p>' : '';
       savedGPXFiles.forEach((gpx, index) => {
-        container.innerHTML += `<div class="list-item"><div><strong>⛰️ ${gpx.name}</strong></div><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteGPX(${index})">Hapus</button></div>`;
+        container.innerHTML += `<div class="list-item" style="display:flex; justify-content:space-between; align-items:center;"><div><strong>⛰️ ${gpx.name}</strong></div><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteGPX(${index})">Hapus</button></div>`;
       });
       document.getElementById('gpx-count').textContent = savedGPXFiles.length;
     }
@@ -785,11 +885,7 @@
         try {
           const gpxLayer = new L.GPX(gpx.content, { 
             async: true, 
-            marker_options: {
-              startIconUrl: null,
-              endIconUrl: null,
-              shadowUrl: null
-            },
+            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
             polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } 
           });
           gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
@@ -911,6 +1007,7 @@
       if (liveTrackLine) { map.removeLayer(liveTrackLine); liveTrackLine = null; }
       document.getElementById('trip-timer').textContent = "00:00:00";
       document.getElementById('trip-distance').textContent = "0.00 km";
+      document.getElementById('eta-info').textContent = "-";
       document.getElementById('btn-start-rec').disabled = false;
       document.getElementById('btn-start-rec').textContent = "▶️ Start";
       document.getElementById('btn-pause-rec').disabled = true;
@@ -928,21 +1025,21 @@
       activeChartInstances = {};
 
       savedHistory.forEach((trip, index) => {
-        let downloadBtnHTML = trip.gpxData ? `<button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="event.stopPropagation(); downloadTripGPX(${index})">⬇️ Download GPX</button>` : '';
+        let downloadBtnHTML = trip.gpxData ? `<button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="event.stopPropagation(); downloadTripGPX(${index})">⬇️ GPX</button>` : '';
         
         container.innerHTML += `
-          <div class="list-item" onclick="toggleTripDetail(${index})" style="flex-direction:column; align-items:flex-start;">
+          <div class="list-item" onclick="toggleTripDetail(${index})" style="flex-direction:column; align-items:flex-start; cursor:pointer;">
             <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
               <strong>📅 ${trip.date}</strong>
-              <button class="menu-btn" style="background:#dc2626; color:#fff;" onclick="event.stopPropagation(); deleteHistory(${index})">Hapus</button>
+              <div style="display:flex; gap:4px;">
+                ${downloadBtnHTML}
+                <button class="menu-btn" style="background:#dc2626; color:#fff;" onclick="event.stopPropagation(); deleteHistory(${index})">Hapus</button>
+              </div>
             </div>
             <small style="color:#38bdf8; margin-top:2px;">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>
             
             <div id="trip-detail-${index}" style="display:none; width:100%; margin-top:8px; border-top:1px solid #334155; padding-top:6px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span style="font-size:0.65rem; color:#94a3b8;">📈 Grafik Elevasi Sesi Ini</span>
-                ${downloadBtnHTML}
-              </div>
+              <span style="font-size:0.65rem; color:#94a3b8; display:block; margin-bottom:4px;">📈 Grafik Elevasi Sesi Ini</span>
               <div style="background: #090d16; padding: 6px; border-radius: 6px; border: 1px solid #334155;">
                 <div style="width: 100%; height: 120px; position: relative;">
                   <canvas id="chart-trip-${index}"></canvas>
@@ -1002,11 +1099,7 @@
                 plugins: { legend: { display: false } },
                 scales: {
                   x: { ticks: { color: '#94a3b8', font: { size: 7 } }, grid: { color: '#334155' } },
-                  y: { 
-                    ticks: { color: '#94a3b8', font: { size: 7 } }, 
-                    grid: { color: '#334155' },
-                    min: 0
-                  }
+                  y: { ticks: { color: '#94a3b8', font: { size: 7 } }, grid: { color: '#334155' }, min: 0 }
                 }
               }
             });
