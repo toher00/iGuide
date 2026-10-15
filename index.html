@@ -156,7 +156,7 @@
 <body onclick="unlockAudioContext()">
 
   <header>
-    <h1>🧭 iGuide - Never Lose Your Way.</h1>
+    <h1>🧭 iGuide - Never Lose Your Way. </h1>
     <div style="display: flex; align-items: center; gap: 8px;">
       <span class="owner-tag">crafted by - @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
@@ -325,7 +325,7 @@
 
     let map;
     let userMarker;
-    let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
+    let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 150; // Default awal realistis dataran
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -756,7 +756,7 @@
       });
     }
 
-    // Perbaikan: Jika API gagal/error, kembalikan nilai null agar tidak menimpa elevasi asli dengan 0
+    // Logika Normalisasi Elevasi: Hanya bernilai 0 jika benar-benar di bawah 3 mdpl (laut/sungai), jika gagal API pertahankan nilai sebelumnya.
     function calculateElevationForCoord(lat, lng, callback) {
       if (!navigator.onLine) {
         callback(null);
@@ -768,7 +768,11 @@
         .then(data => {
           if (data && data.results && data.results[0] && data.results[0].elevation !== undefined) {
             let alt = Math.round(data.results[0].elevation);
-            callback(alt);
+            if (alt < 3) {
+              callback(0); // Wilayah permukaan laut / sungai
+            } else {
+              callback(alt);
+            }
           } else { 
             callback(null); 
           }
