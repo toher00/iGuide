@@ -155,19 +155,6 @@
     }
 	
     .leaflet-control-attribution { display: none !important; }
-
-    /* STYLING UNTUK PIN WAYPOINT/POS BAWAAN GPX */
-    .custom-gpx-pin {
-      width: 24px;
-      height: 24px;
-      background: #0f172a;
-      border: 2px solid #38bdf8;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.8);
-    }
   </style>
 </head>
 <body onclick="unlockAudioContext()">
@@ -351,9 +338,7 @@
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 15;
     
-    // Peta Personal tersimpan lokal di HP masing-masing user
     let savedPersonalGPX = JSON.parse(localStorage.getItem('saved_personal_gpx_v18') || '[]');
-    // Peta General disinkronkan dari Firebase pusat
     let cachedGeneralGPX = {};
 
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v18') || '[]');
@@ -384,25 +369,37 @@
     let audioCtx = null;
     let sosActiveTimer = null;
 
-    // Sitem Super Admin tersembunyi dengan ketuk 5x
     let ownerTapCount = 0;
     let ownerTapTimer = null;
     const SUPER_ADMIN_PIN = "1999";
     let isSuperAdmin = localStorage.getItem('is_super_admin_v18') === 'true';
 
-    // 1. DUMMY BLANK IMAGE UNTUK MENONAKTIFKAN GAMBAR BAWAAN LEAFLET GPX SAMA SELEKASNYA
-    const BLANK_ICON_URL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    // Blank image untuk menonaktifkan marker/start/end bawaan yang error
+    const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-    // 2. PENANDA SVG KHUSUS UNTUK WAYPOINT/POS DARI FILE GPX
-    const customGpxWaypointIcon = L.divIcon({
-      className: 'custom-gpx-pin',
+    // Ikon pin khusus untuk pos/waypoint resmi dari file GPX
+    const gpxPosMarkerIcon = L.divIcon({
+      className: 'custom-gpx-pos-pin',
       html: `
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="#38bdf8" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-        </svg>
+        <div style="
+          background: #0f172a; 
+          border: 2px solid #ef4444; 
+          color: #ffffff; 
+          border-radius: 20px; 
+          padding: 3px 8px; 
+          font-size: 11px; 
+          font-weight: 700; 
+          display: flex; 
+          align-items: center; 
+          gap: 4px; 
+          box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+          white-space: nowrap;
+        ">
+          <span style="color:#f87171;">📍</span> POS
+        </div>
       `,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
+      iconSize: [null, 24],
+      iconAnchor: [15, 12]
     });
 
     function handleOwnerTap() {
@@ -537,7 +534,6 @@
       renderHistoryList();
       renderCheckpoints();
       
-      // Sinkronisasi Peta General dari Firebase & render pustaka
       listenToGeneralGPX();
 
       if (myTeamGroup) document.getElementById('team-group-input').value = myTeamGroup;
@@ -675,30 +671,51 @@
       document.getElementById('gpx-count').textContent = totalCount;
     }
 
-    // KONFIGURASI PENANGANAN MARKER GPX DENGAN MENUTUP SELURUH GAMBAR BAWAAN LEAFLET
+    // RENDER SEMUA GPX KE PETA (HANYA WAYPOINT RESMI / POS YANG DIBERI MARKER & LABEL)
     function renderAllGPXToMap() {
       activeGPXLayerGroup.clearLayers();
 
-      const gpxOptions = {
-        async: true,
-        marker_options: {
-          startIconUrl: BLANK_ICON_URL,
-          endIconUrl: BLANK_ICON_URL,
-          shadowUrl: BLANK_ICON_URL,
-          wptIconUrls: { '': BLANK_ICON_URL },
-          wptIcon: customGpxWaypointIcon, // Menggunakan penanda SVG vektor kita
-          pointToLayer: function(waypoint, latlng) {
-            return L.marker(latlng, { icon: customGpxWaypointIcon }).bindPopup(`<b>📍 ${waypoint.name || 'Pos/Waypoint'}</b>`);
-          }
-        },
-        polyline_options: { color: '#38bdf8', weight: 4, opacity: 0.85 }
+      const createGPXLayer = (gpxContent, lineColor) => {
+        return new L.GPX(gpxContent, {
+          async: true,
+          marker_options: {
+            startIconUrl: BLANK_IMG,
+            endIconUrl: BLANK_IMG,
+            shadowUrl: BLANK_IMG,
+            wptIconUrls: { '': BLANK_IMG },
+            wptIcon: gpxPosMarkerIcon,
+            pointToLayer: function(waypoint, latlng) {
+              const posName = waypoint.name || 'Pos / Waypoint';
+              
+              const marker = L.marker(latlng, { icon: gpxPosMarkerIcon });
+              
+              marker.bindPopup(`
+                <div style="font-size:0.8rem; padding: 2px;">
+                  <b style="color:#0284c7;">📍 ${posName}</b>
+                  ${waypoint.meta && waypoint.meta.ele ? `<br><small style="color:#64748b;">⛰️ Elevasi: ${Math.round(waypoint.meta.ele)} mdpl</small>` : ''}
+                  ${waypoint.meta && waypoint.meta.desc ? `<br><small style="color:#475569;">ℹ️ ${waypoint.meta.desc}</small>` : ''}
+                </div>
+              `);
+
+              marker.bindTooltip(`<b>${posName}</b>`, {
+                permanent: true, 
+                direction: 'top', 
+                offset: [0, -10],
+                className: 'team-label'
+              });
+
+              return marker;
+            }
+          },
+          polyline_options: { color: lineColor, weight: 4, opacity: 0.85 }
+        });
       };
 
       // Load General GPX
       Object.keys(cachedGeneralGPX).forEach(key => {
         try {
-          const gpx = cachedGeneralGPX[key].content;
-          const gpxLayer = new L.GPX(gpx, gpxOptions);
+          const gpxContent = cachedGeneralGPX[key].content;
+          const gpxLayer = createGPXLayer(gpxContent, '#38bdf8');
           gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
           activeGPXLayerGroup.addLayer(gpxLayer);
         } catch (err) { console.error(err); }
@@ -707,8 +724,7 @@
       // Load Personal GPX
       savedPersonalGPX.forEach(gpx => {
         try {
-          const personalOptions = Object.assign({}, gpxOptions, { polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } });
-          const gpxLayer = new L.GPX(gpx.content, personalOptions);
+          const gpxLayer = createGPXLayer(gpx.content, '#f59e0b');
           activeGPXLayerGroup.addLayer(gpxLayer);
         } catch (err) { console.error(err); }
       });
