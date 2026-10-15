@@ -249,8 +249,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
   <script>
-    // KODE BARU YANG BENAR
-	const firebaseConfig = { databaseURL: "https://summitguide-pro-default-rtdb-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+    const firebaseConfig = { databaseURL: "https://summitguide-pro-default-rtdb-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const db = firebase.database();
 
@@ -622,7 +621,7 @@
 
     function updateUIStatus() {
       document.getElementById('altitude').textContent = `${currentAlt} mdpl`;
-      document.getElementById('gps-status').textContent = "Akurat";
+      document.getElementById('gps-status').textContent = "InsyaAllah Akurat";
       document.getElementById('gps-status').style.color = "#34d399";
 
       if (!userMarker) {
@@ -688,7 +687,15 @@
       activeGPXLayerGroup.clearLayers();
       savedGPXFiles.forEach(gpx => {
         try {
-          const gpxLayer = new L.GPX(gpx.content, { async: true, polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } });
+          const gpxLayer = new L.GPX(gpx.content, { 
+            async: true, 
+            marker_options: {
+              startIconUrl: null, // Matikan gambar ikon rusak
+              endIconUrl: null,   // Matikan gambar ikon rusak
+              shadowUrl: null
+            },
+            polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } 
+          });
           gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
           activeGPXLayerGroup.addLayer(gpxLayer);
         } catch (err) { console.error(err); }
