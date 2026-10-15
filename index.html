@@ -281,7 +281,7 @@
       <div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
         <button class="menu-btn" style="background:#1e3a8a;" onclick="sendQuickMessage('☕ Istirahat sebentar!')">☕ Istirahat</button>
         <button class="menu-btn" style="background:#065f46;" onclick="sendQuickMessage('📍 Tunggu saya di pos depan!')">📍 Tunggu Pos</button>
-        <button class="menu-btn" style="background:#7c2d12;" onclick="sendQuickMessage('💧 Isi ulang air /水源')">💧 Air Habis</button>
+        <button class="menu-btn" style="background:#7c2d12;" onclick="sendQuickMessage('💧 Air Habis')">💧 Air Habis</button>
       </div>
       <div style="display: flex; gap: 6px;">
         <input type="text" id="chat-input-text" placeholder="Ketik pesan singkat..." style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.75rem;" onkeypress="if(event.key==='Enter') sendCustomMessage()">
@@ -363,6 +363,8 @@
         navigator.getBattery().then(bat => {
           updateBatteryVal(bat.level);
           bat.addEventListener('levelchange', () => updateBatteryVal(bat.level));
+        }).catch(() => {
+          document.getElementById('battery-status').textContent = "100%";
         });
       } else {
         document.getElementById('battery-status').textContent = "100%";
@@ -782,7 +784,13 @@
       if ('geolocation' in navigator) {
         navigator.geolocation.watchPosition(position => {
           let accuracy = position.coords.accuracy;
-          if (accuracy > 45) return;
+          if (accuracy > 50) {
+            document.getElementById('gps-status').textContent = "Lemah";
+            document.getElementById('gps-status').style.color = "#f59e0b";
+          } else {
+            document.getElementById('gps-status').textContent = "Akurat";
+            document.getElementById('gps-status').style.color = "#34d399";
+          }
 
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
@@ -797,9 +805,16 @@
             currentAlt = Math.round(rawAlt);
             updateUIStatus();
           }
-        }, () => {
-          document.getElementById('gps-status').textContent = "Err";
-        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+
+          fetchRealtimeWeather(currentLat, currentLng);
+        }, (error) => {
+          console.warn("GPS Warning:", error.message);
+          document.getElementById('gps-status').textContent = "Default";
+          document.getElementById('gps-status').style.color = "#f59e0b";
+          updateUIStatus();
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+      } else {
+        document.getElementById('gps-status').textContent = "Tdk Ada";
       }
     }
 
@@ -830,10 +845,9 @@
             localStorage.setItem('total_distance_v17', totalDistanceMeters);
             document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
 
-            // Hitung ETA (Asumsi sisa jarak asumsi jalur total 5km atau kalkulasi sisa dari GPX)
             if (tripSeconds > 60 && totalDistanceMeters > 50) {
-              const speedMps = totalDistanceMeters / tripSeconds; // meter per detik
-              const estimatedTotalKm = 5.0; // Perkiraan target jalur gunung rata-rata
+              const speedMps = totalDistanceMeters / tripSeconds;
+              const estimatedTotalKm = 5.0; 
               const remainingKm = Math.max(0, estimatedTotalKm - (totalDistanceMeters / 1000));
               if (speedMps > 0.1) {
                 const remainingSeconds = remainingKm * 1000 / speedMps;
