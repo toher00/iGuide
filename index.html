@@ -137,7 +137,6 @@
     <button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="openModal('team-modal')">👥 Live Tim (<span id="team-status-label">Off</span>)</button>
   </div>
 
-  <!-- Status Bar Utama -->
   <div class="status-bar">
     <div class="status-card">
       <h4>Ketinggian</h4>
@@ -157,29 +156,19 @@
     </div>
   </div>
 
-  <!-- Area Peta & Kompas -->
   <div class="map-container">
     <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
         <circle cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
-        
-        <!-- Jarum UTARA -->
         <polygon points="50,6 43,50 50,44" fill="#ef4444"/>
         <polygon points="50,6 57,50 50,44" fill="#f87171"/>
-        
-        <!-- Jarum SELATAN -->
         <polygon points="50,94 43,50 50,56" fill="#64748b"/>
         <polygon points="50,94 57,50 50,56" fill="#94a3b8"/>
-        
-        <!-- Jarum BARAT -->
         <polygon points="6,50 50,43 44,50" fill="#10b981"/>
         <polygon points="6,50 50,57 44,50" fill="#34d399"/>
-        
-        <!-- Jarum TIMUR -->
         <polygon points="94,50 50,43 56,50" fill="#64748b"/>
         <polygon points="94,50 50,57 56,50" fill="#94a3b8"/>
-
         <text x="45" y="20" font-size="13" font-weight="bold" fill="#ef4444">N</text>
         <text x="81" y="54" font-size="11" font-weight="bold" fill="#94a3b8">E</text>
         <text x="46" y="88" font-size="11" font-weight="bold" fill="#94a3b8">S</text>
@@ -274,21 +263,32 @@
     let teamLayerGroup = L.layerGroup();
     let savedCheckpoints = JSON.parse(localStorage.getItem('saved_checkpoints_v17') || '[]');
 
-    let isRecording = false;
+    // Sistem Strava-Style: Menggunakan timestamp nyata (Real Wall-Clock Time)
+    let isRecording = localStorage.getItem('is_recording_v17') === 'true';
     let tripTimerInterval = null;
-    let tripSeconds = 0;
-    let tripStartDateStr = "";
-    let recordedTrackPoints = [];
+    let tripStartTime = parseInt(localStorage.getItem('trip_start_time_timestamp_v17') || '0');
+    let tripSeconds = parseInt(localStorage.getItem('trip_seconds_v17') || '0');
+    let tripStartDateStr = localStorage.getItem('trip_start_date_v17') || "";
+    let recordedTrackPoints = JSON.parse(localStorage.getItem('recorded_track_points_v17') || '[]');
     let liveTrackLine = null;
-    let totalDistanceMeters = 0;
-    let startElevation = 0;
-    let maxElevation = 0;
+    let totalDistanceMeters = parseFloat(localStorage.getItem('total_distance_v17') || '0');
+    let startElevation = parseInt(localStorage.getItem('start_elevation_v17') || '0');
+    let maxElevation = parseInt(localStorage.getItem('max_elevation_v17') || '0');
     let elevationChartInstance = null;
 
+    let wakeLock = null;
     let isLiveActive = false;
     let myTeamGroup = localStorage.getItem('team_group') || '';
     let myTeamName = localStorage.getItem('team_name') || '';
     let liveSyncInterval = null;
+
+    async function requestScreenWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (err) { console.log("Wake Lock error:", err); }
+    }
 
     function stringToColor(str) {
       let hash = 0;
@@ -330,6 +330,21 @@
       if (myTeamGroup && myTeamName) {
         document.getElementById('team-group-input').value = myTeamGroup;
         document.getElementById('team-name-input').value = myTeamName;
+      }
+
+      // Pemulihan State Strava-Style saat aplikasi dibuka kembali
+      if (isRecording) {
+        document.getElementById('btn-start-rec').disabled = true;
+        document.getElementById('btn-pause-rec').disabled = false;
+        document.getElementById('btn-stop-rec').disabled = false;
+        document.getElementById('recorder-state').textContent = "Merekam (Aktif)...";
+        document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
+        
+        requestScreenWakeLock();
+        startTimerInterval();
+        if (recordedTrackPoints.length > 0) {
+          liveTrackLine = L.polyline(recordedTrackPoints, {color: '#22c55e', weight: 5, smoothFactor: 1.5}).addTo(map);
+        }
       }
 
       map.on('dblclick', function(e) {
@@ -407,7 +422,6 @@
       if (degText) degText.textContent = `${normalizedDeg}°`;
     }
 
-    /* PERBAIKAN SKALA GRAFIK ELEVASI AGAR TIDAK BUG/MENURUN TERUS */
     function initElevationChart() {
       const ctx = document.getElementById('elevationChart').getContext('2d');
       elevationChartInstance = new Chart(ctx, {
@@ -446,7 +460,6 @@
       if (!elevationChartInstance) return;
       const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
       
-      // Jika data masih default awal, bersihkan dulu agar tidak menumpuk
       if (elevationChartInstance.data.labels.length === 1 && elevationChartInstance.data.labels[0] === 'Mulai') {
         elevationChartInstance.data.labels = [];
         elevationChartInstance.data.datasets[0].data = [];
@@ -500,6 +513,7 @@
 
     function updateMyTeamLocation() {
       if (!isLiveActive || !myTeamGroup || !myTeamName) return;
+      if (!navigator.onLine) return; // Jangan paksa sync jika mode pesawat / offline
       
       db.ref(`teams/${myTeamGroup}/${myTeamName}`).set({
         name: myTeamName,
@@ -512,7 +526,7 @@
     }
 
     function listenToTeamMembers() {
-      if (!myTeamGroup) return;
+      if (!myTeamGroup || !navigator.onLine) return;
       db.ref(`teams/${myTeamGroup}`).on('value', (snapshot) => {
         const members = snapshot.val();
         teamLayerGroup.clearLayers();
@@ -539,8 +553,11 @@
       });
     }
 
-    /* PERBAIKAN ELEVASI LAUT (MENJADI 0 MDPL) */
     function calculateElevationForCoord(lat, lng, callback) {
+      if (!navigator.onLine) {
+        fallbackEstimation(lat, lng, callback);
+        return;
+      }
       const peakLat = -7.5991, peakLng = 112.6223;
       const distKm = Math.hypot(lat - peakLat, lng - peakLng) * 111;
       if (distKm < 0.15) { callback(1653); return; }
@@ -617,7 +634,7 @@
       if ('geolocation' in navigator) {
         navigator.geolocation.watchPosition(position => {
           let accuracy = position.coords.accuracy;
-          if (accuracy > 35) return;
+          if (accuracy > 45) return; // Toleransi akurasi GPS
 
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
@@ -653,15 +670,21 @@
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
 
-        if (!lastPoint || map.distance(lastPoint, newPt) >= 5) {
+        // PERBAIKAN TRACK LURUS: Diubah dari 5m menjadi 2m agar tikungan & kelokan jalan terekam detail
+        if (!lastPoint || map.distance(lastPoint, newPt) >= 2) {
           recordedTrackPoints.push(newPt);
+          localStorage.setItem('recorded_track_points_v17', JSON.stringify(recordedTrackPoints));
 
           if (lastPoint) {
             totalDistanceMeters += map.distance(lastPoint, newPt);
+            localStorage.setItem('total_distance_v17', totalDistanceMeters);
             document.getElementById('trip-distance').textContent = (totalDistanceMeters / 1000).toFixed(2) + ' km';
           }
 
-          if (currentAlt > maxElevation) maxElevation = currentAlt;
+          if (currentAlt > maxElevation) {
+            maxElevation = currentAlt;
+            localStorage.setItem('max_elevation_v17', maxElevation);
+          }
           updateChartData(currentAlt);
 
           if (!liveTrackLine) {
@@ -712,36 +735,64 @@
       autoLoadAllGPXToMap();
     }
 
+    // STRAVA-STYLE TIMER MENGGUNAKAN REAL TIMESTAMP DELTA (ANTI-RESET SAAT LAYAR MATI)
+    function startTimerInterval() {
+      if (tripTimerInterval) clearInterval(tripTimerInterval);
+      tripTimerInterval = setInterval(() => {
+        if (!isRecording) return;
+        
+        const elapsedMs = Date.now() - tripStartTime;
+        tripSeconds = Math.floor(elapsedMs / 1000);
+        localStorage.setItem('trip_seconds_v17', tripSeconds);
+
+        const days = Math.floor(tripSeconds / 86400);
+        const hrs = Math.floor((tripSeconds % 86400) / 3600);
+        const mins = Math.floor((tripSeconds % 3600) / 60);
+        const secs = tripSeconds % 60;
+        let timeStr = days > 0 ? `${days} Hari ` : '';
+        timeStr += `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+        document.getElementById('trip-timer').textContent = timeStr;
+      }, 1000);
+    }
+
     function startRecording() {
       isRecording = true;
+      localStorage.setItem('is_recording_v17', 'true');
+      
+      if (!tripStartTime || tripStartTime === 0) {
+        tripStartTime = Date.now();
+        localStorage.setItem('trip_start_time_timestamp_v17', tripStartTime);
+      }
+
       startElevation = currentAlt;
       maxElevation = currentAlt;
+      localStorage.setItem('start_elevation_v17', startElevation);
+      localStorage.setItem('max_elevation_v17', maxElevation);
+      
       tripStartDateStr = new Date().toLocaleString('id-ID');
-      if (recordedTrackPoints.length === 0) recordedTrackPoints = [[currentLat, currentLng]];
+      localStorage.setItem('trip_start_date_v17', tripStartDateStr);
+
+      if (recordedTrackPoints.length === 0) {
+        recordedTrackPoints = [[currentLat, currentLng]];
+        localStorage.setItem('recorded_track_points_v17', JSON.stringify(recordedTrackPoints));
+      }
 
       document.getElementById('btn-start-rec').disabled = true;
       document.getElementById('btn-pause-rec').disabled = false;
       document.getElementById('btn-stop-rec').disabled = false;
       document.getElementById('recorder-state').textContent = "Merekam...";
 
-      if (!tripTimerInterval) {
-        tripTimerInterval = setInterval(() => {
-          tripSeconds++;
-          const days = Math.floor(tripSeconds / 86400);
-          const hrs = Math.floor((tripSeconds % 86400) / 3600);
-          const mins = Math.floor((tripSeconds % 3600) / 60);
-          const secs = tripSeconds % 60;
-          let timeStr = days > 0 ? `${days} Hari ` : '';
-          timeStr += `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-          document.getElementById('trip-timer').textContent = timeStr;
-        }, 1000);
-      }
+      requestScreenWakeLock();
+      startTimerInterval();
     }
 
     function pauseRecording() {
       isRecording = false;
+      localStorage.setItem('is_recording_v17', 'false');
       clearInterval(tripTimerInterval);
       tripTimerInterval = null;
+      if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+
       document.getElementById('btn-start-rec').disabled = false;
       document.getElementById('btn-start-rec').textContent = "▶️ Lanjut";
       document.getElementById('btn-pause-rec').disabled = true;
@@ -752,6 +803,7 @@
       isRecording = false;
       clearInterval(tripTimerInterval);
       tripTimerInterval = null;
+      if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
 
       const durationText = document.getElementById('trip-timer').textContent;
       const distanceText = document.getElementById('trip-distance').textContent;
@@ -776,7 +828,14 @@
         alert("Trip berhasil disimpan ke Riwayat & siap di-download!");
       }
 
-      tripSeconds = 0; totalDistanceMeters = 0; recordedTrackPoints = [];
+      // Bersihkan penyimpanan sementara rekaman aktif
+      localStorage.removeItem('is_recording_v17');
+      localStorage.removeItem('trip_seconds_v17');
+      localStorage.removeItem('trip_start_time_timestamp_v17');
+      localStorage.removeItem('recorded_track_points_v17');
+      localStorage.removeItem('total_distance_v17');
+
+      tripSeconds = 0; tripStartTime = 0; totalDistanceMeters = 0; recordedTrackPoints = [];
       if (liveTrackLine) { map.removeLayer(liveTrackLine); liveTrackLine = null; }
       document.getElementById('trip-timer').textContent = "00:00:00";
       document.getElementById('trip-distance').textContent = "0.00 km";
