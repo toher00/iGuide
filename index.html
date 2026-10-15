@@ -92,7 +92,8 @@
 
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 2000; padding: 12px; overflow-y: auto; }
     .modal-content { background: #1e293b; padding: 16px; border-radius: 10px; max-width: 440px; margin: 30px auto; border: 1px solid #334155; }
-    .list-item { background: #0f172a; padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #38bdf8; border: 1px solid #1e293b; }
+    .list-item { background: #0f172a; padding: 8px 10px; margin-bottom: 6px; border-radius: 6px; font-size: 0.75rem; border-left: 3px solid #38bdf8; border: 1px solid #1e293b; cursor: pointer; }
+    .list-item:hover { background: #162032; }
     
     .pos-popup-img { width: 100%; max-height: 110px; object-fit: cover; border-radius: 6px; margin-top: 6px; border: 1px solid #334155; cursor: pointer; }
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
@@ -198,19 +199,10 @@
 
   <!-- MODAL RIWAYAT TRIP -->
   <div id="history-modal" class="modal">
-    <div class="modal-content">
-      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Download GPX</h3>
-      <div id="history-list-container" style="max-height: 140px; overflow-y: auto; margin-bottom: 10px;"></div>
-      
-      <!-- BINGKAI GRAFIK ELEVASI DENGAN TINGGI TETAP (ANTI MELAR) -->
-      <div style="background: #0f172a; padding: 8px; border-radius: 6px; border: 1px solid #334155; margin-bottom: 10px;">
-        <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📈 Grafik Elevasi Sesi Ini</h4>
-        <div style="width: 100%; height: 130px; position: relative;">
-          <canvas id="elevationChart"></canvas>
-        </div>
-      </div>
-      
-      <button class="btn btn-rose" style="width: 100%; padding: 8px;" onclick="closeModal('history-modal')">Tutup</button>
+    <div class="modal-content" style="max-width: 480px;">
+      <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Grafik Sesi</h3>
+      <div id="history-list-container" style="max-height: 380px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;"></div>
+      <button class="btn btn-rose" style="width: 100%; padding: 8px; margin-top: 6px;" onclick="closeModal('history-modal')">Tutup</button>
     </div>
   </div>
 
@@ -274,17 +266,18 @@
     let tripSeconds = parseInt(localStorage.getItem('trip_seconds_v17') || '0');
     let tripStartDateStr = localStorage.getItem('trip_start_date_v17') || "";
     let recordedTrackPoints = JSON.parse(localStorage.getItem('recorded_track_points_v17') || '[]');
+    let recordedElevationLog = JSON.parse(localStorage.getItem('recorded_elevation_log_v17') || '[]');
     let liveTrackLine = null;
     let totalDistanceMeters = parseFloat(localStorage.getItem('total_distance_v17') || '0');
     let startElevation = parseInt(localStorage.getItem('start_elevation_v17') || '0');
     let maxElevation = parseInt(localStorage.getItem('max_elevation_v17') || '0');
-    let elevationChartInstance = null;
 
     let wakeLock = null;
     let isLiveActive = false;
     let myTeamGroup = localStorage.getItem('team_group') || '';
     let myTeamName = localStorage.getItem('team_name') || '';
     let liveSyncInterval = null;
+    let activeChartInstances = {};
 
     async function requestScreenWakeLock() {
       try {
@@ -329,7 +322,6 @@
       renderHistoryList();
       renderCheckpoints();
       autoLoadAllGPXToMap();
-      initElevationChart();
 
       if (myTeamGroup && myTeamName) {
         document.getElementById('team-group-input').value = myTeamGroup;
@@ -423,58 +415,6 @@
 
       if (svgEl) svgEl.style.transform = `rotate(${-normalizedDeg}deg)`;
       if (degText) degText.textContent = `${normalizedDeg}°`;
-    }
-
-    function initElevationChart() {
-      const ctx = document.getElementById('elevationChart').getContext('2d');
-      elevationChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: ['Mulai'],
-          datasets: [{
-            label: 'Elevasi (mdpl)',
-            data: [currentAlt],
-            borderColor: '#38bdf8',
-            backgroundColor: 'rgba(56, 189, 248, 0.15)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.3,
-            pointRadius: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: '#94a3b8', font: { size: 7 } }, grid: { color: '#334155' } },
-            y: { 
-              ticks: { color: '#94a3b8', font: { size: 7 } }, 
-              grid: { color: '#334155' },
-              min: 0,
-              suggestedMax: 2000
-            }
-          }
-        }
-      });
-    }
-
-    function updateChartData(alt) {
-      if (!elevationChartInstance) return;
-      const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-      
-      if (elevationChartInstance.data.labels.length === 1 && elevationChartInstance.data.labels[0] === 'Mulai') {
-        elevationChartInstance.data.labels = [];
-        elevationChartInstance.data.datasets[0].data = [];
-      }
-
-      elevationChartInstance.data.labels.push(timeNow);
-      elevationChartInstance.data.datasets[0].data.push(alt);
-      if (elevationChartInstance.data.labels.length > 25) {
-        elevationChartInstance.data.labels.shift();
-        elevationChartInstance.data.datasets[0].data.shift();
-      }
-      elevationChartInstance.update();
     }
 
     function toggleLiveTracking(enable) {
@@ -677,6 +617,10 @@
           recordedTrackPoints.push(newPt);
           localStorage.setItem('recorded_track_points_v17', JSON.stringify(recordedTrackPoints));
 
+          const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+          recordedElevationLog.push({ time: timeNow, alt: currentAlt });
+          localStorage.setItem('recorded_elevation_log_v17', JSON.stringify(recordedElevationLog));
+
           if (lastPoint) {
             totalDistanceMeters += map.distance(lastPoint, newPt);
             localStorage.setItem('total_distance_v17', totalDistanceMeters);
@@ -687,7 +631,6 @@
             maxElevation = currentAlt;
             localStorage.setItem('max_elevation_v17', maxElevation);
           }
-          updateChartData(currentAlt);
 
           if (!liveTrackLine) {
             liveTrackLine = L.polyline(recordedTrackPoints, {color: '#22c55e', weight: 5, smoothFactor: 1.5}).addTo(map);
@@ -776,6 +719,8 @@
       if (recordedTrackPoints.length === 0) {
         recordedTrackPoints = [[currentLat, currentLng]];
         localStorage.setItem('recorded_track_points_v17', JSON.stringify(recordedTrackPoints));
+        recordedElevationLog = [{ time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}), alt: currentAlt }];
+        localStorage.setItem('recorded_elevation_log_v17', JSON.stringify(recordedElevationLog));
       }
 
       document.getElementById('btn-start-rec').disabled = true;
@@ -822,7 +767,8 @@
           distance: distanceText, 
           startAlt: startElevation, 
           maxAlt: maxElevation,
-          gpxData: gpxTrackXML 
+          gpxData: gpxTrackXML,
+          elevationLog: [...recordedElevationLog]
         });
         localStorage.setItem('saved_trip_history_v17', JSON.stringify(savedHistory));
         renderHistoryList();
@@ -833,9 +779,10 @@
       localStorage.removeItem('trip_seconds_v17');
       localStorage.removeItem('trip_start_time_timestamp_v17');
       localStorage.removeItem('recorded_track_points_v17');
+      localStorage.removeItem('recorded_elevation_log_v17');
       localStorage.removeItem('total_distance_v17');
 
-      tripSeconds = 0; tripStartTime = 0; totalDistanceMeters = 0; recordedTrackPoints = [];
+      tripSeconds = 0; tripStartTime = 0; totalDistanceMeters = 0; recordedTrackPoints = []; recordedElevationLog = [];
       if (liveTrackLine) { map.removeLayer(liveTrackLine); liveTrackLine = null; }
       document.getElementById('trip-timer').textContent = "00:00:00";
       document.getElementById('trip-distance').textContent = "0.00 km";
@@ -849,11 +796,101 @@
     function renderHistoryList() {
       const container = document.getElementById('history-list-container');
       container.innerHTML = savedHistory.length === 0 ? '<p style="color:#94a3b8; text-align:center;">Belum ada riwayat.</p>' : '';
+      
+      // Hancurkan chart lama jika ada
+      Object.keys(activeChartInstances).forEach(id => {
+        if (activeChartInstances[id]) activeChartInstances[id].destroy();
+      });
+      activeChartInstances = {};
+
       savedHistory.forEach((trip, index) => {
-        let downloadBtnHTML = trip.gpxData ? `<button class="menu-btn" style="background:#0284c7; color:#fff; margin-top:4px;" onclick="downloadTripGPX(${index})">⬇️ Download GPX</button>` : '';
-        container.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;"><div style="width:100%; display:flex; justify-content:space-between;"><strong>📅 ${trip.date}</strong><button class="menu-btn" style="background:#dc2626;color:#white;" onclick="deleteHistory(${index})">Hapus</button></div><small style="color:#38bdf8; margin-top:2px;">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>${downloadBtnHTML}</div>`;
+        let downloadBtnHTML = trip.gpxData ? `<button class="menu-btn" style="background:#0284c7; color:#fff;" onclick="event.stopPropagation(); downloadTripGPX(${index})">⬇️ Download GPX</button>` : '';
+        
+        container.innerHTML += `
+          <div class="list-item" onclick="toggleTripDetail(${index})" style="flex-direction:column; align-items:flex-start;">
+            <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+              <strong>📅 ${trip.date}</strong>
+              <button class="menu-btn" style="background:#dc2626; color:#fff;" onclick="event.stopPropagation(); deleteHistory(${index})">Hapus</button>
+            </div>
+            <small style="color:#38bdf8; margin-top:2px;">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>
+            
+            <!-- Kontainer Detail & Grafik Per-Riwayat (Tersembunyi Awal) -->
+            <div id="trip-detail-${index}" style="display:none; width:100%; margin-top:8px; border-top:1px solid #334155; padding-top:6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:0.65rem; color:#94a3b8;">📈 Grafik Elevasi Sesi Ini</span>
+                ${downloadBtnHTML}
+              </div>
+              <div style="background: #090d16; padding: 6px; border-radius: 6px; border: 1px solid #334155;">
+                <div style="width: 100%; height: 120px; position: relative;">
+                  <canvas id="chart-trip-${index}"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
       });
       document.getElementById('history-count').textContent = savedHistory.length;
+    }
+
+    function toggleTripDetail(index) {
+      const detailEl = document.getElementById(`trip-detail-${index}`);
+      if (!detailEl) return;
+
+      const isHidden = detailEl.style.display === 'none';
+      detailEl.style.display = isHidden ? 'block' : 'none';
+
+      if (isHidden) {
+        // Render Chart untuk riwayat ini jika belum ada
+        setTimeout(() => {
+          const canvasEl = document.getElementById(`chart-trip-${index}`);
+          if (canvasEl && !activeChartInstances[index]) {
+            const trip = savedHistory[index];
+            let labels = [];
+            let dataVals = [];
+
+            if (trip.elevationLog && trip.elevationLog.length > 0) {
+              trip.elevationLog.forEach(log => {
+                labels.push(log.time);
+                dataVals.push(log.alt);
+              });
+            } else {
+              labels = ['Mulai', 'Selesai'];
+              dataVals = [trip.startAlt || 0, trip.maxAlt || 0];
+            }
+
+            const ctx = canvasEl.getContext('2d');
+            activeChartInstances[index] = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: 'Elevasi (mdpl)',
+                  data: dataVals,
+                  borderColor: '#38bdf8',
+                  backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.3,
+                  pointRadius: 0
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: { ticks: { color: '#94a3b8', font: { size: 7 } }, grid: { color: '#334155' } },
+                  y: { 
+                    ticks: { color: '#94a3b8', font: { size: 7 } }, 
+                    grid: { color: '#334155' },
+                    min: 0
+                  }
+                }
+              }
+            });
+          }
+        }, 50);
+      }
     }
 
     function downloadTripGPX(index) {
