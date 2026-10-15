@@ -43,6 +43,7 @@
     .menu-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; padding: 5px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; }
     .menu-btn:active { background: #334155; }
 
+    /* STATUS BAR 3 KOLOM (Ketinggian, Cuaca, Jarak, SOS) */
     .status-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 5px 8px; background: #0f172a; text-align: center; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
     .status-card { background: rgba(30, 41, 59, 0.7); padding: 4px 2px; border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.4); }
     .status-card h4 { font-size: 0.45rem; text-transform: uppercase; color: #94a3b8; font-weight: 600; margin-bottom: 1px; }
@@ -104,8 +105,9 @@
       margin-top: -3px;
     }
 
-    .controls { padding: 8px 10px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; border-top: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
-    .btn { padding: 8px 2px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: white; background: #2563eb; font-size: 0.58rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    /* KONTROL BAWAH 5 TOMBOL NAVIGASI */
+    .controls { padding: 8px 10px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; border-top: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
+    .btn { padding: 8px 4px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: white; background: #2563eb; font-size: 0.62rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .btn:active { transform: scale(0.96); }
     .btn-emerald { background: #059669; }
     .btn-rose { background: #e11d48; }
@@ -192,6 +194,7 @@
     </div>
   </div>
 
+  <!-- STATUS BAR (Ketinggian, Cuaca, Jarak, TOMBOL SOS) -->
   <div class="status-bar">
     <div class="status-card">
       <h4>Ketinggian</h4>
@@ -205,9 +208,10 @@
       <h4>Jarak</h4>
       <p id="trip-distance">0.00 km</p>
     </div>
-    <div class="status-card" onclick="promptManualBattery()" style="cursor: pointer;" title="Klik untuk ubah manual persentase baterai">
-      <h4>Baterai HP (✏️)</h4>
-      <p id="battery-status">85%</p>
+    <!-- TOMBOL SOS DIALIHKAN KE ATAS -->
+    <div class="status-card" onclick="triggerSOS()" style="cursor: pointer; background: rgba(220, 38, 38, 0.25); border-color: rgba(239, 68, 68, 0.6);" title="Klik untuk Kirim Sinyal Darurat SOS">
+      <h4 style="color: #f87171;">Darurat</h4>
+      <p style="color: #ef4444; font-weight: 800;">🚨 SOS</p>
     </div>
   </div>
 
@@ -237,13 +241,13 @@
     <div id="map"></div>
   </div>
 
+  <!-- KONTROL BAWAH KHUSUS NAVIGASI & PEREKAMAN -->
   <div class="controls">
     <button class="btn btn-sky" onclick="locateUser()">📍 Pos</button>
     <button class="btn btn-purple" onclick="openModal('add-pos-modal')">🚩 Tandai</button>
     <button class="btn btn-emerald" id="btn-start-rec" onclick="startRecording()">▶️ Start</button>
     <button class="btn btn-amber" id="btn-pause-rec" onclick="pauseRecording()" disabled>⏸️ Pause</button>
     <button class="btn btn-rose" id="btn-stop-rec" onclick="stopRecording()" disabled>⏹️ Selesai</button>
-    <button class="btn btn-sos" onclick="triggerSOS()">🚨 SOS</button>
   </div>
 
   <!-- MODAL PUSTAKA GPX -->
@@ -277,7 +281,7 @@
         <button class="btn btn-rose" style="padding: 8px;" onclick="toggleLiveTracking(false)">Matikan</button>
       </div>
       <div style="background: #0f172a; padding: 8px; border-radius: 6px; border: 1px solid #334155;">
-        <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📡 Anggota Terhubung & Baterai:</h4>
+        <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📡 Anggota Terhubung:</h4>
         <div id="team-members-list" style="font-size: 0.7rem; color: #34d399; max-height: 90px; overflow-y: auto;">Belum terhubung</div>
       </div>
       <button class="btn" style="width: 100%; margin-top: 10px; background: #334155;" onclick="closeModal('team-modal')">Tutup</button>
@@ -334,7 +338,6 @@
     let map;
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 1653;
-    let batteryLevel = parseInt(localStorage.getItem('manual_battery_v17') || '85');
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -411,41 +414,6 @@
       }
     }
 
-    // PENGURANGAN BATERAI OTOMATIS BERDASARKAN WAKTU PENDAKIAN
-    function initBatteryMonitor() {
-      document.getElementById('battery-status').textContent = `${batteryLevel}%`;
-
-      // Jika browser mendukung pembacaan baterai nyata, gunakan. Jika tidak, kurangi otomatis setiap 15 menit saat merekam trip.
-      if ('getBattery' in navigator) {
-        navigator.getBattery().then(bat => {
-          if (bat.level && bat.level > 0 && bat.level <= 1) {
-            batteryLevel = Math.round(bat.level * 100);
-            document.getElementById('battery-status').textContent = `${batteryLevel}%`;
-          }
-          bat.addEventListener('levelchange', () => {
-            batteryLevel = Math.round(bat.level * 100);
-            document.getElementById('battery-status').textContent = `${batteryLevel}%`;
-          });
-        }).catch(() => {});
-      }
-    }
-
-    function promptManualBattery() {
-      const input = prompt("Masukkan sisa baterai HP Anda saat ini (dalam %):", batteryLevel);
-      if (input !== null && !isNaN(input)) {
-        let val = parseInt(input);
-        if (val >= 0 && val <= 100) {
-          batteryLevel = val;
-          localStorage.setItem('manual_battery_v17', batteryLevel);
-          document.getElementById('battery-status').textContent = `${batteryLevel}%`;
-          if (isLiveActive) updateMyTeamLocation();
-          alert(`Baterai diperbarui ke ${batteryLevel}%`);
-        } else {
-          alert("Masukkan angka antara 0 sampai 100!");
-        }
-      }
-    }
-
     function stringToColor(str) {
       let hash = 0;
       for (let i = 0; i < str.length; i++) {
@@ -476,7 +444,6 @@
 
       updateDateTimeDisplay();
       setInterval(updateDateTimeDisplay, 1000);
-      initBatteryMonitor();
 
       renderGPXLibrary();
       renderHistoryList();
@@ -511,7 +478,6 @@
         }
       }
 
-      // PERBAIKAN KLIK DI LAUT / DATARAN RENDAH (0 MDPL)
       map.on('dblclick', function(e) {
         calculateElevationForCoord(e.latlng.lat, e.latlng.lng, function(checkedAlt) {
           L.popup()
@@ -714,7 +680,6 @@
         lat: currentLat,
         lng: currentLng,
         alt: currentAlt,
-        battery: batteryLevel,
         path: recordedTrackPoints,
         sos: isSosActive,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
@@ -732,7 +697,7 @@
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
-            memberNamesList.push(`${member.name} (${member.battery || 85}%)${member.sos ? ' [🚨 SOS]' : ''}`);
+            memberNamesList.push(`${member.name}${member.sos ? ' [🚨 SOS]' : ''}`);
 
             if (member.sos && member.name !== myTeamName) {
               anySosTriggered = true;
@@ -751,12 +716,12 @@
               fillColor: memberColor, 
               fillOpacity: 1, 
               weight: 3
-            }).bindPopup(`<b>👥 ${member.name}</b> ${member.sos ? '<br><span style="color:#ef4444; font-weight:bold;">🚨 STATUS SOS!</span>' : ''}<br>Baterai: ${member.battery || 85}% | Alt: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
+            }).bindPopup(`<b>👥 ${member.name}</b> ${member.sos ? '<br><span style="color:#ef4444; font-weight:bold;">🚨 STATUS SOS!</span>' : ''}<br>Alt: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
             
             if (member.sos) {
               memberMarker.bindTooltip(`🚨 SOS: ${member.name}`, { permanent: true, direction: 'top', className: 'sos-label' });
             } else {
-              memberMarker.bindTooltip(`${member.name} (${member.battery || 85}%)`, { permanent: true, direction: 'top', className: 'team-label' });
+              memberMarker.bindTooltip(`${member.name}`, { permanent: true, direction: 'top', className: 'team-label' });
             }
             teamLayerGroup.addLayer(memberMarker);
           });
@@ -779,7 +744,6 @@
       });
     }
 
-    // PERBAIKAN LOGIKA ELEVASI AGAR TIDAK SALAH KE 1653 MDPL JIKA DI LAUT/DATARAN RENDAH
     function calculateElevationForCoord(lat, lng, callback) {
       if (!navigator.onLine) {
         callback(0);
@@ -791,7 +755,6 @@
         .then(data => {
           if (data && data.results && data.results[0] && data.results[0].elevation !== undefined) {
             let alt = Math.round(data.results[0].elevation);
-            // Jika ketinggian bernilai negatif atau di bawah 3 mdpl, anggap permukaan laut (0 mdpl)
             if (alt < 3) {
               callback(0);
             } else {
@@ -898,13 +861,6 @@
       if (isRecording) {
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
-
-        // Otomatis kurangi baterai 1% setiap 20 menit perekaman aktif
-        if (tripSeconds > 0 && tripSeconds % 1200 === 0 && batteryLevel > 1) {
-          batteryLevel--;
-          localStorage.setItem('manual_battery_v17', batteryLevel);
-          document.getElementById('battery-status').textContent = `${batteryLevel}%`;
-        }
 
         if (!lastPoint || map.distance(lastPoint, newPt) >= 2) {
           recordedTrackPoints.push(newPt);
