@@ -200,11 +200,16 @@
   <div id="history-modal" class="modal">
     <div class="modal-content">
       <h3 style="margin-bottom: 10px; font-size: 0.9rem; font-weight: 600;">📜 Riwayat Perjalanan & Download GPX</h3>
-      <div id="history-list-container" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;"></div>
+      <div id="history-list-container" style="max-height: 140px; overflow-y: auto; margin-bottom: 10px;"></div>
+      
+      <!-- BINGKAI GRAFIK ELEVASI DENGAN TINGGI TETAP (ANTI MELAR) -->
       <div style="background: #0f172a; padding: 8px; border-radius: 6px; border: 1px solid #334155; margin-bottom: 10px;">
         <h4 style="font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px;">📈 Grafik Elevasi Sesi Ini</h4>
-        <canvas id="elevationChart" style="width:100%; height:100px;"></canvas>
+        <div style="width: 100%; height: 130px; position: relative;">
+          <canvas id="elevationChart"></canvas>
+        </div>
       </div>
+      
       <button class="btn btn-rose" style="width: 100%; padding: 8px;" onclick="closeModal('history-modal')">Tutup</button>
     </div>
   </div>
@@ -263,7 +268,6 @@
     let teamLayerGroup = L.layerGroup();
     let savedCheckpoints = JSON.parse(localStorage.getItem('saved_checkpoints_v17') || '[]');
 
-    // Sistem Strava-Style: Menggunakan timestamp nyata (Real Wall-Clock Time)
     let isRecording = localStorage.getItem('is_recording_v17') === 'true';
     let tripTimerInterval = null;
     let tripStartTime = parseInt(localStorage.getItem('trip_start_time_timestamp_v17') || '0');
@@ -332,7 +336,6 @@
         document.getElementById('team-name-input').value = myTeamName;
       }
 
-      // Pemulihan State Strava-Style saat aplikasi dibuka kembali
       if (isRecording) {
         document.getElementById('btn-start-rec').disabled = true;
         document.getElementById('btn-pause-rec').disabled = false;
@@ -444,9 +447,9 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { color: '#334155' } },
+            x: { ticks: { color: '#94a3b8', font: { size: 7 } }, grid: { color: '#334155' } },
             y: { 
-              ticks: { color: '#94a3b8', font: { size: 8 } }, 
+              ticks: { color: '#94a3b8', font: { size: 7 } }, 
               grid: { color: '#334155' },
               min: 0,
               suggestedMax: 2000
@@ -513,7 +516,7 @@
 
     function updateMyTeamLocation() {
       if (!isLiveActive || !myTeamGroup || !myTeamName) return;
-      if (!navigator.onLine) return; // Jangan paksa sync jika mode pesawat / offline
+      if (!navigator.onLine) return;
       
       db.ref(`teams/${myTeamGroup}/${myTeamName}`).set({
         name: myTeamName,
@@ -634,7 +637,7 @@
       if ('geolocation' in navigator) {
         navigator.geolocation.watchPosition(position => {
           let accuracy = position.coords.accuracy;
-          if (accuracy > 45) return; // Toleransi akurasi GPS
+          if (accuracy > 45) return;
 
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
@@ -670,7 +673,6 @@
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
 
-        // PERBAIKAN TRACK LURUS: Diubah dari 5m menjadi 2m agar tikungan & kelokan jalan terekam detail
         if (!lastPoint || map.distance(lastPoint, newPt) >= 2) {
           recordedTrackPoints.push(newPt);
           localStorage.setItem('recorded_track_points_v17', JSON.stringify(recordedTrackPoints));
@@ -735,7 +737,6 @@
       autoLoadAllGPXToMap();
     }
 
-    // STRAVA-STYLE TIMER MENGGUNAKAN REAL TIMESTAMP DELTA (ANTI-RESET SAAT LAYAR MATI)
     function startTimerInterval() {
       if (tripTimerInterval) clearInterval(tripTimerInterval);
       tripTimerInterval = setInterval(() => {
@@ -828,7 +829,6 @@
         alert("Trip berhasil disimpan ke Riwayat & siap di-download!");
       }
 
-      // Bersihkan penyimpanan sementara rekaman aktif
       localStorage.removeItem('is_recording_v17');
       localStorage.removeItem('trip_seconds_v17');
       localStorage.removeItem('trip_start_time_timestamp_v17');
