@@ -46,12 +46,36 @@
     .map-container { flex-grow: 1; width: 100%; position: relative; display: flex; overflow: hidden; }
     #map { width: 100%; height: 100%; background: #0f172a; z-index: 1; }
 
+    /* BANNER PERINGATAN SOS DARURAT */
+    #sos-banner {
+      display: none;
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #7f1d1d;
+      color: #f8fafc;
+      border: 2px solid #ef4444;
+      padding: 8px 14px;
+      border-radius: 8px;
+      z-index: 2500;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.7);
+      animation: pulse-sos 1s infinite alternate;
+    }
+    @keyframes pulse-sos {
+      0% { background: #7f1d1d; border-color: #ef4444; }
+      100% { background: #dc2626; border-color: #f87171; }
+    }
+
     .compass-widget {
       position: absolute;
-      top: 12px;
+      top: 60px;
       left: 12px;
-      width: 75px;
-      height: 75px;
+      width: 70px;
+      height: 70px;
       background: rgba(15, 23, 42, 0.92);
       backdrop-filter: blur(8px);
       border: 2px solid #38bdf8;
@@ -64,27 +88,34 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
       cursor: pointer;
     }
-    .compass-rose { width: 56px; height: 56px; transition: transform 0.1s ease-out; }
+    .compass-rose { width: 50px; height: 50px; transition: transform 0.1s ease-out; }
     .compass-deg-badge {
-      font-size: 0.5rem;
+      font-size: 0.45rem;
       font-weight: 700;
       color: #34d399;
       background: #0f172a;
-      padding: 1px 4px;
+      padding: 1px 3px;
       border-radius: 3px;
       border: 1px solid #334155;
-      margin-top: -4px;
+      margin-top: -3px;
     }
 
-    .controls { padding: 8px 10px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; border-top: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
-    .btn { padding: 8px 2px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: white; background: #2563eb; font-size: 0.6rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .controls { padding: 8px 10px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(10px); display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; border-top: 1px solid rgba(51, 65, 85, 0.5); flex-shrink: 0; z-index: 10; }
+    .btn { padding: 8px 2px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: white; background: #2563eb; font-size: 0.58rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .btn:active { transform: scale(0.96); }
     .btn-emerald { background: #059669; }
     .btn-rose { background: #e11d48; }
     .btn-amber { background: #d97706; }
     .btn-sky { background: #0284c7; }
     .btn-purple { background: #7c3aed; }
+    .btn-sos { background: #dc2626; color: #fff; font-weight: 700; animation: blink-btn 1.5s infinite; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    @keyframes blink-btn {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
 
     .mode-tag { font-size: 0.5rem; padding: 2px 5px; border-radius: 4px; font-weight: 600; }
     .online { background: #065f46; color: #34d399; }
@@ -110,6 +141,18 @@
       box-shadow: 0 4px 8px rgba(0,0,0,0.5) !important;
       white-space: nowrap !important;
     }
+    
+    .leaflet-tooltip.sos-label {
+      background: #7f1d1d !important;
+      border: 2px solid #ef4444 !important;
+      color: #f8fafc !important;
+      font-weight: 800 !important;
+      font-size: 0.75rem !important;
+      padding: 4px 8px !important;
+      border-radius: 6px !important;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.9) !important;
+      white-space: nowrap !important;
+    }
 	
 	.leaflet-control-attribution { display: none !important; }
  </style>
@@ -119,14 +162,14 @@
   <header>
     <h1>🧭 iGuide Pro</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
-      <span class="owner-tag">crafted by @xhieua</span>
+      <span class="owner-tag">by : @xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
     </div>
   </header>
 
   <div class="recorder-panel">
-    <div><strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
-    <div><span id="trip-datetime">-</span></div>
+    <div>⏱️ <strong id="trip-timer" style="color:#38bdf8">00:00:00</strong></div>
+    <div>📅 <span id="trip-datetime">-</span></div>
     <div id="recorder-state" style="color: #34d399; font-weight: 600;">Siap</div>
   </div>
 
@@ -158,6 +201,7 @@
   </div>
 
   <div class="map-container">
+    <div id="sos-banner">🚨 SINYAL SOS DARURAT AKTIF!</div>
     <div class="compass-widget" onclick="requestCompassPermission()" title="Kompas Aktif">
       <svg class="compass-rose" id="compass-svg" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="46" fill="none" stroke="#334155" stroke-width="4"/>
@@ -181,11 +225,12 @@
   </div>
 
   <div class="controls">
-    <button class="btn btn-sky" onclick="locateUser()">📍 Posisi</button>
+    <button class="btn btn-sky" onclick="locateUser()">📍 Pos</button>
     <button class="btn btn-purple" onclick="openModal('add-pos-modal')">🚩 Tandai</button>
     <button class="btn btn-emerald" id="btn-start-rec" onclick="startRecording()">▶️ Start</button>
     <button class="btn btn-amber" id="btn-pause-rec" onclick="pauseRecording()" disabled>⏸️ Pause</button>
     <button class="btn btn-rose" id="btn-stop-rec" onclick="stopRecording()" disabled>⏹️ Selesai</button>
+    <button class="btn btn-sos" onclick="triggerSOS()">🚨 SOS</button>
   </div>
 
   <!-- MODAL PUSTAKA GPX -->
@@ -280,6 +325,7 @@
     let isLiveActive = localStorage.getItem('is_live_active_v17') === 'true';
     let myTeamGroup = localStorage.getItem('team_group') || '';
     let myTeamName = localStorage.getItem('team_name') || '';
+    let isSosActive = false;
     let liveSyncInterval = null;
     let activeChartInstances = {};
 
@@ -371,6 +417,31 @@
       fetchRealtimeWeather(currentLat, currentLng);
     }
 
+    function triggerSOS() {
+      if (!isLiveActive || !myTeamGroup || !myTeamName) {
+        alert("Harap aktifkan fitur 'Live Tim' terlebih dahulu agar sinyal SOS dapat dikirimkan ke anggota tim!");
+        openModal('team-modal');
+        return;
+      }
+
+      isSosActive = !isSosActive;
+      const banner = document.getElementById('sos-banner');
+
+      if (isSosActive) {
+        if (confirm("⚠️ PERINGATAN DARURAT!\n\nAnda akan mengirimkan sinyal SOS Darurat ke seluruh perangkat dalam grup Anda. Lanjutkan?")) {
+          banner.style.display = "block";
+          updateMyTeamLocation();
+          alert("🚨 Sinyal SOS Berhasil Dikirim!");
+        } else {
+          isSosActive = false;
+        }
+      } else {
+        banner.style.display = "none";
+        updateMyTeamLocation();
+        alert("Sinyal SOS telah dibatalkan/dimatikan.");
+      }
+    }
+
     function fetchRealtimeWeather(lat, lng) {
       if (!navigator.onLine) {
         document.getElementById('weather-info').textContent = "Offline";
@@ -455,6 +526,8 @@
         updateMyTeamLocation();
       } else {
         isLiveActive = false;
+        isSosActive = false;
+        document.getElementById('sos-banner').style.display = "none";
         localStorage.setItem('is_live_active_v17', 'false');
         if (liveSyncInterval) clearInterval(liveSyncInterval);
         if (myTeamGroup && myTeamName) {
@@ -479,6 +552,7 @@
         lng: currentLng,
         alt: currentAlt,
         path: recordedTrackPoints,
+        sos: isSosActive,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
       });
     }
@@ -489,28 +563,50 @@
         const members = snapshot.val();
         teamLayerGroup.clearLayers();
         let memberNamesList = [];
+        let anySosTriggered = false;
 
         if (members) {
           Object.keys(members).forEach(key => {
             const member = members[key];
-            memberNamesList.push(member.name);
+            memberNamesList.push(member.name + (member.sos ? ' [🚨 SOS]' : ''));
 
-            const memberColor = stringToColor(member.name);
+            if (member.sos && member.name !== myTeamName) {
+              anySosTriggered = true;
+            }
+
+            const memberColor = member.sos ? '#ef4444' : stringToColor(member.name);
 
             if (member.path && Array.isArray(member.path) && member.path.length > 1) {
-              const memberTrackLine = L.polyline(member.path, { color: memberColor, weight: 5, opacity: 0.9 });
+              const memberTrackLine = L.polyline(member.path, { color: memberColor, weight: member.sos ? 6 : 5, opacity: 0.9 });
               teamLayerGroup.addLayer(memberTrackLine);
             }
 
             const memberMarker = L.circleMarker([member.lat, member.lng], {
-              radius: 10, color: '#ffffff', fillColor: memberColor, fillOpacity: 1, weight: 2
-            }).bindPopup(`<b>👥 ${member.name}</b><br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
+              radius: member.sos ? 14 : 10, 
+              color: member.sos ? '#fee2e2' : '#ffffff', 
+              fillColor: memberColor, 
+              fillOpacity: 1, 
+              weight: 3
+            }).bindPopup(`<b>👥 ${member.name}</b> ${member.sos ? '<br><span style="color:#ef4444; font-weight:bold;">🚨 STATUS SOS DARURAT!</span>' : ''}<br>Ketinggian: ${member.alt} mdpl<br><small>Update: ${member.time}</small>`);
             
-            memberMarker.bindTooltip(member.name, { permanent: true, direction: 'top', className: 'team-label' });
+            if (member.sos) {
+              memberMarker.bindTooltip(`🚨 SOS: ${member.name}`, { permanent: true, direction: 'top', className: 'sos-label' });
+            } else {
+              memberMarker.bindTooltip(member.name, { permanent: true, direction: 'top', className: 'team-label' });
+            }
             teamLayerGroup.addLayer(memberMarker);
           });
 
           document.getElementById('team-members-list').textContent = memberNamesList.join(', ');
+          
+          const banner = document.getElementById('sos-banner');
+          if (anySosTriggered) {
+            banner.textContent = "🚨 ANGGOTA TIM MENGIRIMKAN SINYAL SOS DARURAT!";
+            banner.style.display = "block";
+          } else if (!isSosActive) {
+            banner.style.display = "none";
+          }
+
         } else {
           document.getElementById('team-members-list').textContent = "Tidak ada anggota lain di grup";
         }
@@ -621,7 +717,7 @@
 
     function updateUIStatus() {
       document.getElementById('altitude').textContent = `${currentAlt} mdpl`;
-      document.getElementById('gps-status').textContent = "InsyaAllah Akurat";
+      document.getElementById('gps-status').textContent = "Akurat";
       document.getElementById('gps-status').style.color = "#34d399";
 
       if (!userMarker) {
@@ -690,8 +786,8 @@
           const gpxLayer = new L.GPX(gpx.content, { 
             async: true, 
             marker_options: {
-              startIconUrl: null, // Matikan gambar ikon rusak
-              endIconUrl: null,   // Matikan gambar ikon rusak
+              startIconUrl: null,
+              endIconUrl: null,
               shadowUrl: null
             },
             polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } 
@@ -837,10 +933,10 @@
         container.innerHTML += `
           <div class="list-item" onclick="toggleTripDetail(${index})" style="flex-direction:column; align-items:flex-start;">
             <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-              <strong>${trip.date}</strong>
+              <strong>📅 ${trip.date}</strong>
               <button class="menu-btn" style="background:#dc2626; color:#fff;" onclick="event.stopPropagation(); deleteHistory(${index})">Hapus</button>
             </div>
-            <small style="color:#38bdf8; margin-top:2px;">${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>
+            <small style="color:#38bdf8; margin-top:2px;">⏱️ ${trip.duration} | 📏 ${trip.distance} | ⛰️ Max: ${trip.maxAlt}m</small>
             
             <div id="trip-detail-${index}" style="display:none; width:100%; margin-top:8px; border-top:1px solid #334155; padding-top:6px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
