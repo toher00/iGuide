@@ -325,7 +325,7 @@
 
     let map;
     let userMarker;
-    let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 0;
+    let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 15;
     
     let savedGPXFiles = JSON.parse(localStorage.getItem('saved_gpx_library_v17') || '[]');
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v17') || '[]');
@@ -756,7 +756,7 @@
       });
     }
 
-    // Fungsi Elevasi Akurat Berbasis Open-Elevation dengan Penanganan Error Aman
+    // Fungsi Elevasi Aman: Pastikan tidak pernah minus (< 0) dan abaikan error API
     function calculateElevationForCoord(lat, lng, callback) {
       if (!navigator.onLine) {
         callback(null);
@@ -768,6 +768,7 @@
         .then(data => {
           if (data && data.results && data.results[0] && data.results[0].elevation !== undefined) {
             let alt = Math.round(data.results[0].elevation);
+            if (alt < 0) alt = 0; // Cegah nilai minus
             callback(alt);
           } else { 
             callback(null); 
@@ -820,7 +821,7 @@
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
           let rawAlt = position.coords.altitude;
-          if (rawAlt !== null && rawAlt !== undefined) {
+          if (rawAlt !== null && rawAlt !== undefined && rawAlt >= 0) {
             currentAlt = Math.round(rawAlt);
             updateUIStatus();
           } else {
@@ -836,11 +837,14 @@
         }, { enableHighAccuracy: true, timeout: 5000 });
 
         navigator.geolocation.watchPosition(position => {
+          // Validasi akurasi GPS: Jika akurasi terlalu buruk (>50 meter), abaikan agar tidak menarik garis lurus fiktif
+          if (position.coords.accuracy > 50) return;
+
           currentLat = position.coords.latitude;
           currentLng = position.coords.longitude;
 
           let rawAlt = position.coords.altitude;
-          if (rawAlt !== null && rawAlt !== undefined) {
+          if (rawAlt !== null && rawAlt !== undefined && rawAlt >= 0) {
             currentAlt = Math.round(rawAlt);
             updateUIStatus();
           } else {
@@ -856,7 +860,7 @@
         }, (error) => {
           console.warn("GPS Warning:", error.message);
           updateUIStatus();
-        }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
+        }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 });
       } else {
         updateUIStatus();
       }
@@ -871,11 +875,13 @@
 
       if (isLiveActive) updateMyTeamLocation();
 
+      // Hanya rekam jika tombol Start aktif dan status beneran merekam (bukan di-pause)
       if (isRecording) {
         const lastPoint = recordedTrackPoints[recordedTrackPoints.length - 1];
         const newPt = [currentLat, currentLng];
 
-        if (!lastPoint || map.distance(lastPoint, newPt) >= 2) {
+        // Pastikan jarak minimal perpindahan 3 meter agar tidak merekam titik ngawur saat diam/terkunci
+        if (!lastPoint || map.distance(lastPoint, newPt) >= 3) {
           recordedTrackPoints.push(newPt);
           localStorage.setItem('recorded_track_points_v17', JSON.stringify(recordedTrackPoints));
 
