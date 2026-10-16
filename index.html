@@ -130,23 +130,10 @@
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
     #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
 
-    /* LABEL KECIL UNTUK NAMA LOKASI GPX (TANPA TULISAN POS) */
-    .gpx-location-label {
-      background: rgba(15, 23, 42, 0.85) !important;
-      border: 1px solid rgba(56, 189, 248, 0.5) !important;
-      color: #e2e8f0 !important;
-      font-weight: 600 !important;
-      font-size: 8px !important;
-      padding: 1px 4px !important;
-      border-radius: 3px !important;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.5) !important;
-      white-space: nowrap !important;
-    }
-
     .leaflet-tooltip.team-label {
       background: rgba(15, 23, 42, 0.95) !important;
       border: 1px solid #38bdf8 !important;
-      color: #f8fafc !important;
+      color: #38bdf8 !important;
       font-weight: 700 !important;
       font-size: 0.68rem !important;
       padding: 3px 6px !important;
@@ -167,7 +154,7 @@
       white-space: nowrap !important;
     }
 	
-    .leaflet-control-attribution { display: none !important; }
+	.leaflet-control-attribution { display: none !important; }
   </style>
 </head>
 <body onclick="unlockAudioContext()">
@@ -175,6 +162,7 @@
   <header>
     <h1>iGuide - Never Lose Your Way</h1>
     <div style="display: flex; align-items: center; gap: 8px;">
+      <!-- TAG OWNER DENGAN KETUK 5X -->
       <span id="owner-badge" class="owner-tag" onclick="handleOwnerTap()" title="Mode Admin">crafted by xhieua</span>
       <span id="connection-status" class="mode-tag online">ONLINE</span>
     </div>
@@ -190,9 +178,11 @@
     <div class="menu-dropdown">
       <button class="menu-btn">☰ Menu Navigasi & Sesi ▾</button>
       <div class="menu-content" id="main-menu-content">
+        <!-- TOMBOL UNTUK USER BIASA (Peta Personal) -->
         <input type="file" id="gpx-personal-input" accept=".gpx" style="display: none;" onchange="handlePersonalGPXUpload(this)">
         <button onclick="document.getElementById('gpx-personal-input').click()">📂 Upload Peta Personal</button>
         
+        <!-- TOMBOL KHUSUS SUPER ADMIN (Peta General Pusat) -->
         <input type="file" id="gpx-general-input" accept=".gpx" style="display: none;" onchange="handleGeneralGPXUpload(this)">
         <button id="admin-upload-btn" style="display: none; background: #065f46; color: #34d399;" onclick="document.getElementById('gpx-general-input').click()">☁️ Upload Peta General (Pusat)</button>
 
@@ -348,8 +338,10 @@
     let userMarker;
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 15;
     
+    // Peta Personal tersimpan lokal di HP masing-masing user
     let savedPersonalGPX = JSON.parse(localStorage.getItem('saved_personal_gpx_v18') || '[]');
-    let cachedGeneralGPX = JSON.parse(localStorage.getItem('cached_general_gpx_v18') || '{}');
+    // Peta General disinkronkan dari Firebase pusat
+    let cachedGeneralGPX = {};
 
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v18') || '[]');
     let activeGPXLayerGroup = L.layerGroup();
@@ -379,21 +371,11 @@
     let audioCtx = null;
     let sosActiveTimer = null;
 
+    // Sitem Super Admin tersembunyi dengan ketuk 5x
     let ownerTapCount = 0;
     let ownerTapTimer = null;
-    const SUPER_ADMIN_PIN = "1999";
+    const SUPER_ADMIN_PIN = "1999"; // Ubah PIN sesuai keinginan Anda
     let isSuperAdmin = localStorage.getItem('is_super_admin_v18') === 'true';
-
-    // GAMBAR TRANSAPARAN KOSONG UNTUK MENONAKTIFKAN IKON PIN/POS DARI BANNER MERAH
-    const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-    // IKON TITIK KECIL TANPA BENNER/BADGE "POS"
-    const tinyDotIcon = L.divIcon({
-      className: 'gpx-tiny-dot',
-      html: `<div style="width:6px; height:6px; background:#38bdf8; border:1px solid #ffffff; border-radius:50%;"></div>`,
-      iconSize: [6, 6],
-      iconAnchor: [3, 3]
-    });
 
     function handleOwnerTap() {
       ownerTapCount++;
@@ -407,7 +389,6 @@
             localStorage.setItem('is_super_admin_v18', 'false');
             document.getElementById('owner-badge').classList.remove('admin-active');
             document.getElementById('admin-upload-btn').style.display = 'none';
-            renderGPXLibrary();
             alert("Mode Super Admin dimatikan.");
           }
         } else {
@@ -417,7 +398,6 @@
             localStorage.setItem('is_super_admin_v18', 'true');
             document.getElementById('owner-badge').classList.add('admin-active');
             document.getElementById('admin-upload-btn').style.display = 'block';
-            renderGPXLibrary();
             alert("✨ Berhasil Masuk sebagai Super Admin! Menu Upload Peta General (Pusat) diaktifkan.");
           } else if (pin !== null) {
             alert("❌ PIN Salah!");
@@ -527,9 +507,7 @@
       renderHistoryList();
       renderCheckpoints();
       
-      renderGPXLibrary();
-      renderAllGPXToMap();
-
+      // Sinkronisasi Peta General dari Firebase & render pustaka
       listenToGeneralGPX();
 
       if (myTeamGroup) document.getElementById('team-group-input').value = myTeamGroup;
@@ -553,10 +531,8 @@
         
         requestScreenWakeLock();
         startTimerInterval();
-        
         if (recordedTrackPoints.length > 0) {
           liveTrackLine = L.polyline(recordedTrackPoints, {color: '#22c55e', weight: 5, smoothFactor: 1.5}).addTo(map);
-          map.fitBounds(liveTrackLine.getBounds());
         }
       }
 
@@ -579,19 +555,16 @@
       updateUIStatus();
     }
 
+    // Mendengarkan Peta General dari Firebase
     function listenToGeneralGPX() {
-      if (!navigator.onLine) return;
       db.ref('gpx_general_library').on('value', (snapshot) => {
-        const val = snapshot.val();
-        if (val) {
-          cachedGeneralGPX = val;
-          localStorage.setItem('cached_general_gpx_v18', JSON.stringify(cachedGeneralGPX));
-          renderGPXLibrary();
-          renderAllGPXToMap();
-        }
+        cachedGeneralGPX = snapshot.val() || {};
+        renderGPXLibrary();
+        renderAllGPXToMap();
       });
     }
 
+    // Super Admin Upload Peta ke Firebase
     function handleGeneralGPXUpload(input) {
       if (!isSuperAdmin) { alert("Akses ditolak! Khusus Super Admin."); return; }
       const file = input.files[0];
@@ -614,6 +587,7 @@
       reader.readAsText(file);
     }
 
+    // Super Admin Hapus Peta dari Firebase
     function deleteGeneralGPX(key) {
       if (!isSuperAdmin) return;
       if (confirm("Hapus peta general ini dari server pusat? Peta akan hilang dari semua perangkat tim.")) {
@@ -621,6 +595,7 @@
       }
     }
 
+    // User Upload Peta Personal (Hanya di HP Sendiri)
     function handlePersonalGPXUpload(input) {
       const file = input.files[0];
       if (!file) return;
@@ -648,6 +623,7 @@
 
       let totalCount = 0;
 
+      // Render Peta General
       container.innerHTML += `<div style="font-size:0.65rem; color:#38bdf8; font-weight:bold; margin-bottom:4px;">🌐 Peta General (Resmi Pusat):</div>`;
       const generalKeys = Object.keys(cachedGeneralGPX);
       if (generalKeys.length === 0) {
@@ -661,6 +637,7 @@
         });
       }
 
+      // Render Peta Personal
       container.innerHTML += `<div style="font-size:0.65rem; color:#f59e0b; font-weight:bold; margin:8px 0 4px 0;">📂 Peta Personal (Privat Anda):</div>`;
       if (savedPersonalGPX.length === 0) {
         container.innerHTML += `<p style="color:#94a3b8; font-size:0.7rem; padding-left:6px;">Belum ada peta personal.</p>`;
@@ -674,60 +651,32 @@
       document.getElementById('gpx-count').textContent = totalCount;
     }
 
-    // OPIIMASI L.GPX AGAR CEBAT, RINGAN, JALUR MULUS, DAN HANYA MENAMPILKAN LABEL TULISAN KECIL
     function renderAllGPXToMap() {
       activeGPXLayerGroup.clearLayers();
 
-      const createGPXLayer = (gpxContent, lineColor) => {
-        return new L.GPX(gpxContent, {
-          async: true,
-          marker_options: {
-            startIconUrl: BLANK_IMG,
-            endIconUrl: BLANK_IMG,
-            shadowUrl: BLANK_IMG,
-            wptIconUrls: { '': BLANK_IMG },
-            wptIcon: tinyDotIcon,
-            pointToLayer: function(waypoint, latlng) {
-              const locationName = waypoint.name;
-              
-              // Hanya buat penanda jika waypoint memiliki Nama Lokasi
-              if (!locationName) return null;
-
-              const marker = L.marker(latlng, { icon: tinyDotIcon });
-
-              // TAMPILKAN HANYA NAMA LOKASI SAJA DENGAN UKURAN STRUKTUR TEKS SANGAT KECIL (TANPA LEMOT)
-              marker.bindTooltip(`${locationName}`, {
-                permanent: true, 
-                direction: 'top', 
-                offset: [0, -4],
-                className: 'gpx-location-label'
-              });
-
-              return marker;
-            }
-          },
-          polyline_options: { color: lineColor, weight: 3.5, opacity: 0.85, smoothFactor: 1 }
-        });
-      };
-
-      // Load General GPX Pusat
+      // Load General GPX
       Object.keys(cachedGeneralGPX).forEach(key => {
         try {
-          if (cachedGeneralGPX[key] && cachedGeneralGPX[key].content) {
-            const gpxLayer = createGPXLayer(cachedGeneralGPX[key].content, '#38bdf8');
-            gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
-            activeGPXLayerGroup.addLayer(gpxLayer);
-          }
+          const gpx = cachedGeneralGPX[key];
+          const gpxLayer = new L.GPX(gpx.content, { 
+            async: true, 
+            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
+            polyline_options: { color: '#38bdf8', weight: 4, opacity: 0.85 } 
+          });
+          gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
+          activeGPXLayerGroup.addLayer(gpxLayer);
         } catch (err) { console.error(err); }
       });
 
-      // Load Personal GPX Privat
+      // Load Personal GPX
       savedPersonalGPX.forEach(gpx => {
         try {
-          if (gpx && gpx.content) {
-            const gpxLayer = createGPXLayer(gpx.content, '#f59e0b');
-            activeGPXLayerGroup.addLayer(gpxLayer);
-          }
+          const gpxLayer = new L.GPX(gpx.content, { 
+            async: true, 
+            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null },
+            polyline_options: { color: '#f59e0b', weight: 4, opacity: 0.8 } 
+          });
+          activeGPXLayerGroup.addLayer(gpxLayer);
         } catch (err) { console.error(err); }
       });
     }
