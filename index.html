@@ -130,6 +130,19 @@
     #photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; padding: 10px; }
     #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
 
+    /* LABEL KECIL UNTUK NAMA LOKASI GPX (TANPA TULISAN POS) */
+    .gpx-location-label {
+      background: rgba(15, 23, 42, 0.85) !important;
+      border: 1px solid rgba(56, 189, 248, 0.5) !important;
+      color: #e2e8f0 !important;
+      font-weight: 600 !important;
+      font-size: 8px !important;
+      padding: 1px 4px !important;
+      border-radius: 3px !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5) !important;
+      white-space: nowrap !important;
+    }
+
     .leaflet-tooltip.team-label {
       background: rgba(15, 23, 42, 0.95) !important;
       border: 1px solid #38bdf8 !important;
@@ -178,7 +191,7 @@
       <button class="menu-btn">☰ Menu Navigasi & Sesi ▾</button>
       <div class="menu-content" id="main-menu-content">
         <input type="file" id="gpx-personal-input" accept=".gpx" style="display: none;" onchange="handlePersonalGPXUpload(this)">
-        <button onclick="document.getElementById('gpx-personal-input').click()">📂 Upload GPX</button>
+        <button onclick="document.getElementById('gpx-personal-input').click()">📂 Upload Peta Personal</button>
         
         <input type="file" id="gpx-general-input" accept=".gpx" style="display: none;" onchange="handleGeneralGPXUpload(this)">
         <button id="admin-upload-btn" style="display: none; background: #065f46; color: #34d399;" onclick="document.getElementById('gpx-general-input').click()">☁️ Upload Peta General (Pusat)</button>
@@ -336,7 +349,6 @@
     let currentLat = -7.5991, currentLng = 112.6223, currentAlt = 15;
     
     let savedPersonalGPX = JSON.parse(localStorage.getItem('saved_personal_gpx_v18') || '[]');
-    // BACKUP CACHE LOKAL UNTUK PETA GENERAL AGAR TETAP BISA DIBUKA SAAT MODE PESAWAT / OFFLINE
     let cachedGeneralGPX = JSON.parse(localStorage.getItem('cached_general_gpx_v18') || '{}');
 
     let savedHistory = JSON.parse(localStorage.getItem('saved_trip_history_v18') || '[]');
@@ -372,29 +384,15 @@
     const SUPER_ADMIN_PIN = "1999";
     let isSuperAdmin = localStorage.getItem('is_super_admin_v18') === 'true';
 
-    // IKON PENANDA POS SPESIFIK & JELAS DENGAN PIN MERAH DAN TULISAN
-    const gpxPosMarkerIcon = L.divIcon({
-      className: 'custom-gpx-pos-pin',
-      html: `
-        <div style="
-          background: #0f172a; 
-          border: 2px solid #ef4444; 
-          color: #ffffff; 
-          border-radius: 20px; 
-          padding: 3px 8px; 
-          font-size: 11px; 
-          font-weight: 700; 
-          display: flex; 
-          align-items: center; 
-          gap: 4px; 
-          box-shadow: 0 4px 10px rgba(0,0,0,0.8);
-          white-space: nowrap;
-        ">
-          <span style="color:#f87171;">📍</span> POS
-        </div>
-      `,
-      iconSize: [null, 24],
-      iconAnchor: [15, 12]
+    // GAMBAR TRANSAPARAN KOSONG UNTUK MENONAKTIFKAN IKON PIN/POS DARI BANNER MERAH
+    const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+    // IKON TITIK KECIL TANPA BENNER/BADGE "POS"
+    const tinyDotIcon = L.divIcon({
+      className: 'gpx-tiny-dot',
+      html: `<div style="width:6px; height:6px; background:#38bdf8; border:1px solid #ffffff; border-radius:50%;"></div>`,
+      iconSize: [6, 6],
+      iconAnchor: [3, 3]
     });
 
     function handleOwnerTap() {
@@ -529,11 +527,9 @@
       renderHistoryList();
       renderCheckpoints();
       
-      // Render Pustaka Peta (Bisa Offline dari CACHE LOKAL)
       renderGPXLibrary();
       renderAllGPXToMap();
 
-      // Sinkronkan versi terbaru dari Firebase jika Online
       listenToGeneralGPX();
 
       if (myTeamGroup) document.getElementById('team-group-input').value = myTeamGroup;
@@ -548,7 +544,6 @@
         liveSyncInterval = setInterval(updateMyTeamLocation, 2500);
       }
 
-      // MEMULIHKAN PEMBAHARUAN PEREKAMAN TRACK GPS JIKA HALAMAN DI-REFRESH
       if (isRecording) {
         document.getElementById('btn-start-rec').disabled = true;
         document.getElementById('btn-pause-rec').disabled = false;
@@ -590,7 +585,6 @@
         const val = snapshot.val();
         if (val) {
           cachedGeneralGPX = val;
-          // Simpan snapshot ke cache lokal HP untuk kebutuhan Offline
           localStorage.setItem('cached_general_gpx_v18', JSON.stringify(cachedGeneralGPX));
           renderGPXLibrary();
           renderAllGPXToMap();
@@ -680,81 +674,61 @@
       document.getElementById('gpx-count').textContent = totalCount;
     }
 
-    // FUNGSI PARSER MANUAL UNTUK MEMBACA DENGAN PASTI SEMUA WAYPOINT & MUNCULKAN MARKER SERTA LABEL
-    function parseAndRenderGPX(gpxXmlString, lineColor) {
-      try {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(gpxXmlString, "text/xml");
-
-        // 1. Gambar Garis Jalur (Polyline Track)
-        const trkpts = xmlDoc.getElementsByTagName("trkpt");
-        let latlngs = [];
-
-        for (let i = 0; i < trkpts.length; i++) {
-          let lat = parseFloat(trkpts[i].getAttribute("lat"));
-          let lon = parseFloat(trkpts[i].getAttribute("lon"));
-          if (!isNaN(lat) && !isNaN(lon)) {
-            latlngs.push([lat, lon]);
-          }
-        }
-
-        if (latlngs.length > 0) {
-          const polyline = L.polyline(latlngs, { color: lineColor, weight: 4, opacity: 0.85 });
-          activeGPXLayerGroup.addLayer(polyline);
-          map.fitBounds(polyline.getBounds());
-        }
-
-        // 2. Gambar Semua Penanda Waypoint (Pos / Basecamp) yang Memiliki Nama
-        const wpts = xmlDoc.getElementsByTagName("wpt");
-        for (let i = 0; i < wpts.length; i++) {
-          let lat = parseFloat(wpts[i].getAttribute("lat"));
-          let lon = parseFloat(wpts[i].getAttribute("lon"));
-          let nameEl = wpts[i].getElementsByTagName("name")[0];
-          let eleEl = wpts[i].getElementsByTagName("ele")[0];
-
-          let posName = nameEl ? nameEl.textContent : "Pos / Waypoint";
-          let posEle = eleEl ? Math.round(parseFloat(eleEl.textContent)) : null;
-
-          if (!isNaN(lat) && !isNaN(lon)) {
-            const marker = L.marker([lat, lon], { icon: gpxPosMarkerIcon });
-
-            marker.bindPopup(`
-              <div style="font-size:0.8rem; padding: 2px;">
-                <b style="color:#0284c7;">📍 ${posName}</b>
-                ${posEle ? `<br><small style="color:#64748b;">⛰️ Elevasi: ${posEle} mdpl</small>` : ''}
-              </div>
-            `);
-
-            marker.bindTooltip(`<b>${posName}</b>`, {
-              permanent: true, 
-              direction: 'top', 
-              offset: [0, -10],
-              className: 'team-label'
-            });
-
-            activeGPXLayerGroup.addLayer(marker);
-          }
-        }
-      } catch (err) {
-        console.error("Gagal parse GPX:", err);
-      }
-    }
-
+    // OPIIMASI L.GPX AGAR CEBAT, RINGAN, JALUR MULUS, DAN HANYA MENAMPILKAN LABEL TULISAN KECIL
     function renderAllGPXToMap() {
       activeGPXLayerGroup.clearLayers();
 
-      // Render Peta General Pusat
+      const createGPXLayer = (gpxContent, lineColor) => {
+        return new L.GPX(gpxContent, {
+          async: true,
+          marker_options: {
+            startIconUrl: BLANK_IMG,
+            endIconUrl: BLANK_IMG,
+            shadowUrl: BLANK_IMG,
+            wptIconUrls: { '': BLANK_IMG },
+            wptIcon: tinyDotIcon,
+            pointToLayer: function(waypoint, latlng) {
+              const locationName = waypoint.name;
+              
+              // Hanya buat penanda jika waypoint memiliki Nama Lokasi
+              if (!locationName) return null;
+
+              const marker = L.marker(latlng, { icon: tinyDotIcon });
+
+              // TAMPILKAN HANYA NAMA LOKASI SAJA DENGAN UKURAN STRUKTUR TEKS SANGAT KECIL (TANPA LEMOT)
+              marker.bindTooltip(`${locationName}`, {
+                permanent: true, 
+                direction: 'top', 
+                offset: [0, -4],
+                className: 'gpx-location-label'
+              });
+
+              return marker;
+            }
+          },
+          polyline_options: { color: lineColor, weight: 3.5, opacity: 0.85, smoothFactor: 1 }
+        });
+      };
+
+      // Load General GPX Pusat
       Object.keys(cachedGeneralGPX).forEach(key => {
-        if (cachedGeneralGPX[key] && cachedGeneralGPX[key].content) {
-          parseAndRenderGPX(cachedGeneralGPX[key].content, '#38bdf8');
-        }
+        try {
+          if (cachedGeneralGPX[key] && cachedGeneralGPX[key].content) {
+            const gpxLayer = createGPXLayer(cachedGeneralGPX[key].content, '#38bdf8');
+            gpxLayer.on('loaded', (e) => map.fitBounds(e.target.getBounds()));
+            activeGPXLayerGroup.addLayer(gpxLayer);
+          }
+        } catch (err) { console.error(err); }
       });
 
-      // Render Peta Personal Privat
+      // Load Personal GPX Privat
       savedPersonalGPX.forEach(gpx => {
-        if (gpx && gpx.content) {
-          parseAndRenderGPX(gpx.content, '#f59e0b');
-        }
+        try {
+          if (gpx && gpx.content) {
+            const gpxLayer = createGPXLayer(gpx.content, '#f59e0b');
+            activeGPXLayerGroup.addLayer(gpxLayer);
+          }
+        } catch (err) { console.error(err); }
       });
     }
 
